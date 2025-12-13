@@ -1,22 +1,34 @@
 import Database from 'better-sqlite3';
 import { nanoid } from 'nanoid';
 import path from 'path';
+import fs from 'fs';
 import type { Session, CreateSessionRequest, SessionStatus, SessionConfig } from '@/types';
 
 // Database path configuration
 const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data/db/claude-cloud.db');
 
 class SessionStore {
-  private db: Database.Database;
+  private _db: Database.Database | null = null;
 
-  constructor() {
-    this.db = new Database(DB_PATH);
-    this.db.pragma('journal_mode = WAL');
-    this.initSchema();
+  // Lazy database initialization
+  private get db(): Database.Database {
+    if (!this._db) {
+      // Ensure directory exists
+      const dbDir = path.dirname(DB_PATH);
+      if (!fs.existsSync(dbDir)) {
+        fs.mkdirSync(dbDir, { recursive: true });
+      }
+
+      this._db = new Database(DB_PATH);
+      this._db.pragma('journal_mode = WAL');
+      this.initSchema();
+    }
+    return this._db;
   }
 
   private initSchema(): void {
-    this.db.exec(`
+    // Use _db directly since this is called during initialization
+    this._db!.exec(`
       CREATE TABLE IF NOT EXISTS sessions (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -39,21 +51,21 @@ class SessionStore {
 
     // Add owner_id column if it doesn't exist
     try {
-      this.db.exec(`ALTER TABLE sessions ADD COLUMN owner_id TEXT DEFAULT ''`);
+      this._db!.exec(`ALTER TABLE sessions ADD COLUMN owner_id TEXT DEFAULT ''`);
     } catch {
       // Column already exists
     }
 
     // Add is_public column if it doesn't exist
     try {
-      this.db.exec(`ALTER TABLE sessions ADD COLUMN is_public INTEGER DEFAULT 0`);
+      this._db!.exec(`ALTER TABLE sessions ADD COLUMN is_public INTEGER DEFAULT 0`);
     } catch {
       // Column already exists
     }
 
     // Create index for owner_id
     try {
-      this.db.exec(`CREATE INDEX IF NOT EXISTS idx_sessions_owner ON sessions(owner_id)`);
+      this._db!.exec(`CREATE INDEX IF NOT EXISTS idx_sessions_owner ON sessions(owner_id)`);
     } catch {
       // Index might already exist
     }
@@ -228,7 +240,10 @@ class SessionStore {
 
   // Close database connection
   close(): void {
-    this.db.close();
+    if (this._db) {
+      this._db.close();
+      this._db = null;
+    }
   }
 
   // Convert database row to Session object

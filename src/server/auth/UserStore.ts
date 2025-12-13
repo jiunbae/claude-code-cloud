@@ -1,23 +1,34 @@
 import Database from 'better-sqlite3';
 import { nanoid } from 'nanoid';
 import path from 'path';
+import fs from 'fs';
 import type { User, PublicUser } from '@/types/auth';
 
 // Database path configuration
 const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data/db/claude-cloud.db');
 
 class UserStore {
-  private db: Database.Database;
+  private _db: Database.Database | null = null;
 
-  constructor() {
-    this.db = new Database(DB_PATH);
-    this.db.pragma('journal_mode = WAL');
-    this.initSchema();
+  // Lazy database initialization
+  private get db(): Database.Database {
+    if (!this._db) {
+      // Ensure directory exists
+      const dbDir = path.dirname(DB_PATH);
+      if (!fs.existsSync(dbDir)) {
+        fs.mkdirSync(dbDir, { recursive: true });
+      }
+
+      this._db = new Database(DB_PATH);
+      this._db.pragma('journal_mode = WAL');
+      this.initSchema();
+    }
+    return this._db;
   }
 
   private initSchema(): void {
-    // Create users table
-    this.db.exec(`
+    // Create users table (use _db directly since this is called during initialization)
+    this._db!.exec(`
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
         email TEXT UNIQUE NOT NULL,
@@ -35,20 +46,20 @@ class UserStore {
 
     // Add owner_id column to sessions if it doesn't exist
     try {
-      this.db.exec(`ALTER TABLE sessions ADD COLUMN owner_id TEXT DEFAULT ''`);
+      this._db!.exec(`ALTER TABLE sessions ADD COLUMN owner_id TEXT DEFAULT ''`);
     } catch {
       // Column already exists
     }
 
     try {
-      this.db.exec(`ALTER TABLE sessions ADD COLUMN is_public INTEGER DEFAULT 0`);
+      this._db!.exec(`ALTER TABLE sessions ADD COLUMN is_public INTEGER DEFAULT 0`);
     } catch {
       // Column already exists
     }
 
     // Create index for owner_id
     try {
-      this.db.exec(`CREATE INDEX IF NOT EXISTS idx_sessions_owner ON sessions(owner_id)`);
+      this._db!.exec(`CREATE INDEX IF NOT EXISTS idx_sessions_owner ON sessions(owner_id)`);
     } catch {
       // Index might already exist
     }
@@ -221,7 +232,10 @@ class UserStore {
    * Close database connection
    */
   close(): void {
-    this.db.close();
+    if (this._db) {
+      this._db.close();
+      this._db = null;
+    }
   }
 
   private rowToUser(row: UserRow): User {
