@@ -44,6 +44,8 @@ RUN apt-get update && apt-get install -y \
     # General utilities
     ca-certificates \
     procps \
+    # For entrypoint user switching
+    gosu \
     && rm -rf /var/lib/apt/lists/*
 
 # Install pnpm
@@ -69,7 +71,15 @@ COPY --from=builder /app/tsconfig.json ./
 # Copy server source files (will be executed with tsx at runtime)
 COPY --from=builder /app/src ./src
 
-# Create data directory
+# Create entrypoint script
+RUN echo '#!/bin/sh\n\
+set -e\n\
+mkdir -p /app/data/db /app/data/sessions\n\
+chown -R nodejs:nodejs /app/data\n\
+exec gosu nodejs "$@"' > /usr/local/bin/docker-entrypoint.sh \
+    && chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Create data directory (will be overlaid by volume mount, entrypoint recreates at runtime)
 RUN mkdir -p /app/data/db /app/data/sessions && chown -R nodejs:nodejs /app
 
 # Environment variables
@@ -83,11 +93,15 @@ ENV DATABASE_PATH=/app/data/db/claude-cloud.db
 # Expose ports
 EXPOSE 3000 3001 3003
 
-USER nodejs
+# Note: We don't use USER nodejs here because entrypoint needs root
+# to create directories, then switches to nodejs via su-exec
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:3000/api/health || exit 1
+
+# Entrypoint to setup directories at runtime
+ENTRYPOINT ["docker-entrypoint.sh"]
 
 # Start both Next.js and WebSocket server (use tsx for TypeScript)
 CMD ["sh", "-c", "node_modules/.bin/concurrently -n next,ws 'node_modules/.bin/next start' 'node_modules/.bin/tsx src/server/websocket-server.ts'"]
