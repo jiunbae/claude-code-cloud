@@ -1,21 +1,34 @@
 import Database from 'better-sqlite3';
 import { nanoid } from 'nanoid';
 import path from 'path';
+import fs from 'fs';
 import crypto from 'crypto';
 import type { ShareToken, CreateShareTokenRequest } from '@/types/collaboration';
 
 const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data/db/claude-cloud.db');
 
 class ShareTokenStore {
-  private db: Database.Database;
+  private _db: Database.Database | null = null;
 
-  constructor() {
-    this.db = new Database(DB_PATH);
-    this.initSchema();
+  // Lazy database initialization
+  private get db(): Database.Database {
+    if (!this._db) {
+      // Ensure directory exists
+      const dbDir = path.dirname(DB_PATH);
+      if (!fs.existsSync(dbDir)) {
+        fs.mkdirSync(dbDir, { recursive: true });
+      }
+
+      this._db = new Database(DB_PATH);
+      this._db.pragma('journal_mode = WAL');
+      this.initSchema();
+    }
+    return this._db;
   }
 
   private initSchema(): void {
-    this.db.exec(`
+    // Use _db directly since this is called during initialization
+    this._db!.exec(`
       CREATE TABLE IF NOT EXISTS share_tokens (
         id TEXT PRIMARY KEY,
         session_id TEXT NOT NULL,

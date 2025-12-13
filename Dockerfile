@@ -33,27 +33,6 @@ COPY . .
 # Build Next.js app
 RUN pnpm build
 
-# Build WebSocket server TypeScript
-RUN npx tsc \
-    --outDir dist \
-    --rootDir src \
-    --esModuleInterop \
-    --module commonjs \
-    --target ES2022 \
-    --resolveJsonModule \
-    --skipLibCheck \
-    --declaration false \
-    --moduleResolution node \
-    src/server/websocket-server.ts
-
-# ===== Production Dependencies =====
-FROM base AS prod-deps
-
-COPY package.json pnpm-lock.yaml ./
-
-# Install only production dependencies
-RUN pnpm install --frozen-lockfile --prod
-
 # ===== Runtime Stage =====
 FROM node:20-bookworm-slim AS runner
 
@@ -70,22 +49,25 @@ RUN apt-get update && apt-get install -y \
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Create non-root user
-RUN groupadd --gid 1000 nodejs \
-    && useradd --uid 1000 --gid nodejs --shell /bin/bash --create-home nodejs
+# Create non-root user (node user already exists with UID/GID 1000 in the base image)
+# Rename and reconfigure the existing node user
+RUN usermod -l nodejs -d /home/nodejs -m node 2>/dev/null || true \
+    && groupmod -n nodejs node 2>/dev/null || true \
+    && mkdir -p /home/nodejs && chown -R 1000:1000 /home/nodejs
 
 WORKDIR /app
 
-# Copy production dependencies
-COPY --from=prod-deps /app/node_modules ./node_modules
+# Copy all dependencies (including tsx for runtime TypeScript execution)
+COPY --from=deps /app/node_modules ./node_modules
 
 # Copy built Next.js app
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/package.json ./
+COPY --from=builder /app/tsconfig.json ./
 
-# Copy built WebSocket server
-COPY --from=builder /app/dist ./dist
+# Copy server source files (will be executed with tsx at runtime)
+COPY --from=builder /app/src ./src
 
 # Create data directory
 RUN mkdir -p /app/data/db /app/data/sessions && chown -R nodejs:nodejs /app
@@ -107,5 +89,5 @@ USER nodejs
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:3000/api/health || exit 1
 
-# Start both Next.js and WebSocket server
-CMD ["sh", "-c", "node_modules/.bin/concurrently -n next,ws 'node_modules/.bin/next start' 'node dist/server/websocket-server.js'"]
+# Start both Next.js and WebSocket server (use tsx for TypeScript)
+CMD ["sh", "-c", "node_modules/.bin/concurrently -n next,ws 'node_modules/.bin/next start' 'node_modules/.bin/tsx src/server/websocket-server.ts'"]
