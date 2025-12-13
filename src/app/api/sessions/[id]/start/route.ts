@@ -1,0 +1,54 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { sessionStore } from '@/server/session/SessionStore';
+
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
+
+const PTY_API_URL = process.env.PTY_API_URL || 'http://localhost:3003';
+
+// POST /api/sessions/:id/start - Start Claude Code process
+export async function POST(request: NextRequest, { params }: RouteParams) {
+  const { id } = await params;
+  const session = sessionStore.get(id);
+
+  if (!session) {
+    return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+  }
+
+  try {
+    sessionStore.updateStatus(id, 'starting');
+
+    // Call PTY API server to start the session
+    const response = await fetch(`${PTY_API_URL}/sessions/${id}/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        projectPath: session.projectPath,
+        config: session.config,
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      sessionStore.updateStatus(id, 'error');
+      return NextResponse.json({ error: result.error }, { status: response.status });
+    }
+
+    sessionStore.updateStatus(id, 'running');
+
+    return NextResponse.json({
+      success: true,
+      pid: result.pid,
+      message: 'Claude Code started',
+    });
+  } catch (error) {
+    sessionStore.updateStatus(id, 'error');
+    console.error('Failed to start session:', error);
+    return NextResponse.json(
+      { error: `Failed to start session: ${(error as Error).message}` },
+      { status: 500 }
+    );
+  }
+}

@@ -1,36 +1,145 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Claude Code Cloud
+
+Run Claude Code in the cloud with web-based terminal access.
+
+## Features
+
+- **Terminal Mirroring**: Real-time Claude Code output via WebSocket
+- **Session Management**: Create, start, stop, and delete sessions with SQLite persistence
+- **File Explorer**: Browse and preview project files with syntax highlighting
+- **Collaboration**: Share sessions with token-based links and see participants
+- **Web Interface**: Modern React-based UI with xterm.js terminal
+- **Docker Support**: Easy deployment with Docker Compose
+
+## Tech Stack
+
+- **Frontend**: Next.js 15, React 19, Tailwind CSS, xterm.js
+- **Backend**: Node.js, WebSocket (ws), node-pty
+- **Database**: SQLite (better-sqlite3)
+- **State Management**: Zustand, TanStack Query
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 22+
+- pnpm
+- Claude Code CLI installed
+
+### Development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+# Install dependencies
+pnpm install
+
+# Start development server
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+This starts:
+- Next.js on http://localhost:3000
+- WebSocket server on ws://localhost:3001
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Production (Docker)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# Build and run with Docker Compose
+docker compose up -d
 
-## Learn More
+# Or for development with hot reload
+docker compose --profile dev up
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Project Structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── api/               # REST API routes
+│   │   ├── health/        # Health check endpoint
+│   │   ├── join/          # Share link validation
+│   │   └── sessions/      # Session CRUD + start/stop/files/share/participants
+│   ├── join/[token]/      # Join session via share link
+│   ├── session/[id]/      # Session detail page
+│   ├── globals.css        # Global styles
+│   ├── layout.tsx         # Root layout
+│   └── page.tsx           # Home page (session list)
+├── components/
+│   ├── Collaboration/     # ShareDialog, ParticipantList
+│   ├── FileExplorer/      # File tree, file preview
+│   ├── Layout/            # Header, layout components
+│   ├── Session/           # Session cards, modals
+│   └── Terminal/          # xterm.js terminal component
+├── hooks/                 # Custom React hooks
+├── server/
+│   ├── collaboration/     # Share tokens, participants
+│   ├── files/             # File system manager
+│   ├── pty/              # PTY process management
+│   ├── session/          # SQLite session storage
+│   └── websocket/        # WebSocket server
+├── stores/               # Zustand stores
+└── types/                # TypeScript type definitions
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## API Endpoints
 
-## Deploy on Vercel
+### Sessions
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `GET /api/sessions` - List all sessions
+- `POST /api/sessions` - Create new session
+- `GET /api/sessions/:id` - Get session details
+- `PATCH /api/sessions/:id` - Update session
+- `DELETE /api/sessions/:id` - Delete session
+- `POST /api/sessions/:id/start` - Start Claude Code
+- `POST /api/sessions/:id/stop` - Stop Claude Code
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Files
+
+- `GET /api/sessions/:id/files` - Get file tree
+- `GET /api/sessions/:id/files?path=<path>` - Get file content
+
+### Collaboration
+
+- `GET /api/sessions/:id/share` - List share tokens
+- `POST /api/sessions/:id/share` - Create share token
+- `DELETE /api/sessions/:id/share` - Delete share token(s)
+- `GET /api/sessions/:id/participants` - List participants
+- `POST /api/sessions/:id/participants` - Join session
+- `DELETE /api/sessions/:id/participants` - Leave session
+- `GET /api/join/:token` - Validate share token
+
+### WebSocket
+
+Connect to `ws://localhost:3001?sessionId=<id>` for terminal I/O.
+
+**Client → Server:**
+- `terminal:input` - Send input to terminal
+- `terminal:resize` - Resize terminal
+- `terminal:signal` - Send signal (SIGINT, SIGTERM)
+
+**Server → Client:**
+- `terminal:output` - Terminal output data
+- `session:status` - Session status changes
+- `session:error` - Error messages
+
+## Configuration
+
+Environment variables:
+
+```env
+PORT=3000              # Next.js port
+WS_PORT=3001           # WebSocket port
+DATABASE_PATH=./data/db/claude-cloud.db
+WORKSPACE_ROOT=/home/user/workspace
+```
+
+## Development Phases
+
+- [x] **Phase 1**: Terminal Mirroring (Core MVP)
+- [x] **Phase 2**: Session Management (SQLite persistence)
+- [x] **Phase 3**: File Explorer
+- [x] **Phase 4**: Collaboration Features
+
+## License
+
+MIT

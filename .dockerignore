@@ -1,0 +1,33 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build output
+.next
+out
+build
+dist
+
+# Development
+.git
+.gitignore
+*.md
+.env*.local
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data (mounted as volume)
+data/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*

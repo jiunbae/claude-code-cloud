@@ -1,0 +1,71 @@
+import { createServer } from 'http';
+import { parse } from 'url';
+import next from 'next';
+import { WsServer } from './websocket/WsServer';
+import { ptyManager } from './pty/PtyManager';
+
+const dev = process.env.NODE_ENV !== 'production';
+const hostname = 'localhost';
+const port = parseInt(process.env.PORT || '3000', 10);
+const wsPort = parseInt(process.env.WS_PORT || '3001', 10);
+
+const app = next({ dev, hostname, port, turbopack: false });
+const handle = app.getRequestHandler();
+
+async function main() {
+  try {
+    await app.prepare();
+
+    // Create HTTP server
+    const server = createServer(async (req, res) => {
+      try {
+        const parsedUrl = parse(req.url!, true);
+        await handle(req, res, parsedUrl);
+      } catch (err) {
+        console.error('Error handling request:', err);
+        res.statusCode = 500;
+        res.end('Internal Server Error');
+      }
+    });
+
+    // Start WebSocket server on separate port
+    const wsServer = new WsServer(wsPort);
+
+    // Start HTTP server
+    server.listen(port, () => {
+      console.log(`> Ready on http://${hostname}:${port}`);
+      console.log(`> WebSocket server on ws://${hostname}:${wsPort}`);
+    });
+
+    // Graceful shutdown
+    const shutdown = async () => {
+      console.log('\nShutting down...');
+
+      // Close WebSocket server
+      wsServer.shutdown();
+
+      // Stop all PTY sessions
+      await ptyManager.shutdown();
+
+      // Close HTTP server
+      server.close(() => {
+        console.log('Server closed');
+        process.exit(0);
+      });
+
+      // Force exit after timeout
+      setTimeout(() => {
+        console.error('Forced exit');
+        process.exit(1);
+      }, 10000);
+    };
+
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+main();

@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"    # Next.js
+      - "3001:3001"    # WebSocket
+    volumes:
+      # Session data persistence
+      - ./data:/app/data
+      # Mount workspace for Claude Code access (read-only)
+      - ${WORKSPACE_ROOT:-/home/jiun/workspace}:/workspace:ro
+      # Claude API credentials
+      - ${ANTHROPIC_CONFIG:-~/.anthropic}:/home/nextjs/.anthropic:ro
+    environment:
+      - NODE_ENV=production
+      - DATABASE_PATH=/app/data/db/claude-cloud.db
+      - WORKSPACE_ROOT=/workspace
+      - WS_PORT=3001
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Development service
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - ./data:/app/data
+      - ${WORKSPACE_ROOT:-/home/jiun/workspace}:/workspace:ro
+      - ${ANTHROPIC_CONFIG:-~/.anthropic}:/root/.anthropic:ro
+    environment:
+      - NODE_ENV=development
+      - DATABASE_PATH=/app/data/db/claude-cloud.db
+      - WORKSPACE_ROOT=/workspace
+      - WS_PORT=3001
+    profiles:
+      - dev
+
+volumes:
+  data:

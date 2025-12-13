@@ -2,25 +2,52 @@
   "name": "claude-code-cloud",
   "version": "0.1.0",
   "private": true,
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "node-pty",
+      "better-sqlite3"
+    ]
+  },
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently -n next,ws -c blue,green \"pnpm dev:next\" \"pnpm dev:ws\"",
+    "dev:next": "next dev --turbopack",
+    "dev:ws": "tsx --watch src/server/websocket-server.ts",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "start": "concurrently -n next,ws \"next start\" \"node dist/server/websocket-server.js\"",
+    "start:prod": "NODE_ENV=production concurrently -n next,ws \"next start\" \"node dist/server/websocket-server.js\"",
+    "lint": "eslint",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\""
   },
   "dependencies": {
-    "next": "16.0.10",
+    "@tanstack/react-query": "^5.90.12",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/xterm": "^5.5.0",
+    "better-sqlite3": "^12.5.0",
+    "chokidar": "^5.0.0",
+    "fast-glob": "^3.3.3",
+    "nanoid": "^5.1.6",
+    "next": "16.1.0-canary.20",
+    "node-pty": "^1.0.0",
     "react": "19.2.1",
-    "react-dom": "19.2.1"
+    "react-dom": "19.2.1",
+    "ws": "^8.18.3",
+    "zustand": "^5.0.9"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/ws": "^8.18.1",
+    "concurrently": "^9.2.1",
     "eslint": "^9",
-    "eslint-config-next": "16.0.10",
+    "eslint-config-next": "16.1.0-canary.20",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "prettier": "^3.7.4",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }
