@@ -12,7 +12,8 @@ dist
 .git
 .gitignore
 *.md
-.env*.local
+.env*
+!.env.example
 
 # IDE
 .idea
@@ -31,3 +32,16 @@ data/
 *.log
 npm-debug.log*
 pnpm-debug.log*
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Scripts
+scripts/
+
+# Test
+coverage/
+*.test.ts
+*.spec.ts

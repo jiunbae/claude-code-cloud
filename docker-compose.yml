@@ -2,50 +2,36 @@ version: '3.8'
 
 services:
   app:
-    build: .
+    image: registry.im-si.org/claude-code-cloud:latest
+    container_name: claude-code-cloud
     ports:
-      - "3000:3000"    # Next.js
-      - "3001:3001"    # WebSocket
+      - "3000:3000"    # Next.js Web UI
+      - "3001:3001"    # WebSocket (Terminal)
+      - "3003:3003"    # PTY API
     volumes:
       # Session data persistence
-      - ./data:/app/data
-      # Mount workspace for Claude Code access (read-only)
-      - ${WORKSPACE_ROOT:-/home/jiun/workspace}:/workspace:ro
-      # Claude API credentials
-      - ${ANTHROPIC_CONFIG:-~/.anthropic}:/home/nextjs/.anthropic:ro
+      - claude-data:/app/data
+      # Mount workspace for Claude Code access
+      - ${WORKSPACE_ROOT:-/volume1/workspace}:/workspace:rw
+      # Claude API credentials (Anthropic)
+      - ${ANTHROPIC_CONFIG:-/volume1/docker/claude-code-cloud/.anthropic}:/home/nodejs/.anthropic:ro
+      # Claude settings
+      - ${CLAUDE_CONFIG:-/volume1/docker/claude-code-cloud/.claude}:/home/nodejs/.claude:rw
     environment:
       - NODE_ENV=production
       - DATABASE_PATH=/app/data/db/claude-cloud.db
       - WORKSPACE_ROOT=/workspace
       - WS_PORT=3001
+      - PTY_API_PORT=3003
+      - JWT_SECRET=${JWT_SECRET:-change-this-secret-in-production}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
+      start_period: 10s
       retries: 3
 
-  # Development service
-  dev:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
-    ports:
-      - "3000:3000"
-      - "3001:3001"
-    volumes:
-      - .:/app
-      - /app/node_modules
-      - ./data:/app/data
-      - ${WORKSPACE_ROOT:-/home/jiun/workspace}:/workspace:ro
-      - ${ANTHROPIC_CONFIG:-~/.anthropic}:/root/.anthropic:ro
-    environment:
-      - NODE_ENV=development
-      - DATABASE_PATH=/app/data/db/claude-cloud.db
-      - WORKSPACE_ROOT=/workspace
-      - WS_PORT=3001
-    profiles:
-      - dev
-
 volumes:
-  data:
+  claude-data:
+    driver: local
