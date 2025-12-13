@@ -4,11 +4,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/Layout';
 import { SessionCard, CreateSessionModal } from '@/components/Session';
+import { AuthGuard } from '@/components/Auth';
 import { useSession } from '@/hooks/useSession';
 import { useSessionStore } from '@/stores/sessionStore';
 import type { Session, CreateSessionRequest } from '@/types';
 
-export default function HomePage() {
+function Dashboard() {
   const router = useRouter();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const { loading, error, getSessions, createSession, startSession, stopSession, deleteSession } =
@@ -168,5 +169,13 @@ export default function HomePage() {
         onCreate={handleCreateSession}
       />
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <AuthGuard>
+      <Dashboard />
+    </AuthGuard>
   );
 }

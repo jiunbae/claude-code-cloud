@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sessionStore } from '@/server/session/SessionStore';
+import { getAuthContext } from '@/server/auth';
 
 const PTY_API_URL = process.env.PTY_API_URL || 'http://localhost:3003';
 
@@ -24,10 +25,22 @@ async function getPtyStatus(sessionId: string): Promise<{ isRunning: boolean; pi
 // GET /api/sessions/:id - Get session details
 export async function GET(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
+  const auth = await getAuthContext(request);
   const session = sessionStore.get(id);
 
   if (!session) {
     return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+  }
+
+  // Check access: owner, public, or legacy session (no owner)
+  const canAccess =
+    !session.ownerId ||
+    session.ownerId === '' ||
+    session.isPublic ||
+    (auth && session.ownerId === auth.userId);
+
+  if (!canAccess) {
+    return NextResponse.json({ error: 'Access denied' }, { status: 403 });
   }
 
   // Get runtime info from PTY API
@@ -45,20 +58,38 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 // PATCH /api/sessions/:id - Update session
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
-  const body = await request.json();
-
-  const session = sessionStore.update(id, body);
+  const auth = await getAuthContext(request);
+  const session = sessionStore.get(id);
 
   if (!session) {
     return NextResponse.json({ error: 'Session not found' }, { status: 404 });
   }
 
-  return NextResponse.json({ session });
+  // Only owner can update (or legacy sessions with no owner)
+  if (session.ownerId && session.ownerId !== '' && (!auth || session.ownerId !== auth.userId)) {
+    return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+  }
+
+  const body = await request.json();
+  const updated = sessionStore.update(id, body);
+
+  return NextResponse.json({ session: updated });
 }
 
 // DELETE /api/sessions/:id - Delete session
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
+  const auth = await getAuthContext(request);
+  const session = sessionStore.get(id);
+
+  if (!session) {
+    return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+  }
+
+  // Only owner can delete (or legacy sessions with no owner)
+  if (session.ownerId && session.ownerId !== '' && (!auth || session.ownerId !== auth.userId)) {
+    return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+  }
 
   // Stop if running via PTY API
   try {

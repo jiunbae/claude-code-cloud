@@ -36,9 +36,30 @@ class SessionStore {
       CREATE INDEX IF NOT EXISTS idx_sessions_status
         ON sessions(status);
     `);
+
+    // Add owner_id column if it doesn't exist
+    try {
+      this.db.exec(`ALTER TABLE sessions ADD COLUMN owner_id TEXT DEFAULT ''`);
+    } catch {
+      // Column already exists
+    }
+
+    // Add is_public column if it doesn't exist
+    try {
+      this.db.exec(`ALTER TABLE sessions ADD COLUMN is_public INTEGER DEFAULT 0`);
+    } catch {
+      // Column already exists
+    }
+
+    // Create index for owner_id
+    try {
+      this.db.exec(`CREATE INDEX IF NOT EXISTS idx_sessions_owner ON sessions(owner_id)`);
+    } catch {
+      // Index might already exist
+    }
   }
 
-  create(request: CreateSessionRequest): Session {
+  create(request: CreateSessionRequest, ownerId?: string): Session {
     const id = nanoid(12);
     const now = new Date().toISOString();
 
@@ -46,8 +67,9 @@ class SessionStore {
       INSERT INTO sessions (
         id, name, project_path, status,
         created_at, updated_at, last_active_at,
-        config_cols, config_rows, config_env
-      ) VALUES (?, ?, ?, 'idle', ?, ?, ?, ?, ?, ?)
+        config_cols, config_rows, config_env,
+        owner_id, is_public
+      ) VALUES (?, ?, ?, 'idle', ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -59,7 +81,9 @@ class SessionStore {
       now,
       request.config?.cols ?? 120,
       request.config?.rows ?? 30,
-      JSON.stringify(request.config?.env ?? {})
+      JSON.stringify(request.config?.env ?? {}),
+      ownerId || '',
+      0
     );
 
     return this.get(id)!;
@@ -75,6 +99,44 @@ class SessionStore {
     const stmt = this.db.prepare(`SELECT * FROM sessions ORDER BY last_active_at DESC`);
     const rows = stmt.all() as SessionRow[];
     return rows.map((row) => this.rowToSession(row));
+  }
+
+  // Get sessions by owner
+  getByOwner(ownerId: string): Session[] {
+    const stmt = this.db.prepare(`
+      SELECT * FROM sessions
+      WHERE owner_id = ?
+      ORDER BY last_active_at DESC
+    `);
+    const rows = stmt.all(ownerId) as SessionRow[];
+    return rows.map((row) => this.rowToSession(row));
+  }
+
+  // Get accessible sessions (owned + public)
+  getAccessible(userId: string): Session[] {
+    const stmt = this.db.prepare(`
+      SELECT * FROM sessions
+      WHERE owner_id = ? OR is_public = 1
+      ORDER BY last_active_at DESC
+    `);
+    const rows = stmt.all(userId) as SessionRow[];
+    return rows.map((row) => this.rowToSession(row));
+  }
+
+  // Check if user is owner
+  isOwner(sessionId: string, userId: string): boolean {
+    const stmt = this.db.prepare(`SELECT owner_id FROM sessions WHERE id = ?`);
+    const row = stmt.get(sessionId) as { owner_id: string } | undefined;
+    return row?.owner_id === userId;
+  }
+
+  // Check if session is accessible by user
+  canAccess(sessionId: string, userId: string): boolean {
+    const stmt = this.db.prepare(`
+      SELECT 1 FROM sessions
+      WHERE id = ? AND (owner_id = ? OR is_public = 1 OR owner_id = '')
+    `);
+    return stmt.get(sessionId, userId) !== undefined;
   }
 
   update(id: string, updates: Partial<Session>): Session | null {
@@ -184,6 +246,8 @@ class SessionStore {
         rows: row.config_rows,
         env: JSON.parse(row.config_env) as Record<string, string>,
       },
+      ownerId: row.owner_id || undefined,
+      isPublic: row.is_public === 1,
     };
   }
 }
@@ -200,6 +264,8 @@ interface SessionRow {
   config_cols: number;
   config_rows: number;
   config_env: string;
+  owner_id: string;
+  is_public: number;
 }
 
 // Singleton instance

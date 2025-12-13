@@ -9,6 +9,8 @@ export interface Session {
   updatedAt: Date;
   lastActiveAt: Date;
   config: SessionConfig;
+  ownerId?: string;
+  isPublic?: boolean;
 }
 
 export interface SessionConfig {

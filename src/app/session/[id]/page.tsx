@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Header } from '@/components/Layout';
 import { ShareDialog, ParticipantList } from '@/components/Collaboration';
+import { AuthGuard } from '@/components/Auth';
 import { useSession } from '@/hooks/useSession';
 import type { Session, SessionStatus } from '@/types';
 
@@ -33,7 +34,7 @@ const FileExplorer = dynamic(
 
 type ViewTab = 'terminal' | 'files';
 
-export default function SessionPage() {
+function SessionView() {
   const params = useParams();
   const router = useRouter();
   const sessionId = params.id as string;
@@ -308,5 +309,13 @@ export default function SessionPage() {
         sessionId={sessionId}
       />
     </div>
+  );
+}
+
+export default function SessionPage() {
+  return (
+    <AuthGuard>
+      <SessionView />
+    </AuthGuard>
   );
 }
