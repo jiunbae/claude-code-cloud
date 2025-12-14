@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sessionStore } from '@/server/session/SessionStore';
-import { workspaceStore } from '@/server/workspace/WorkspaceStore';
 import { workspaceManager } from '@/server/workspace/WorkspaceManager';
 
 interface RouteParams {
@@ -18,10 +17,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: 'Session not found' }, { status: 404 });
   }
 
-  // Get workspace to determine project path
-  const workspace = workspaceStore.get(session.workspaceId);
+  // Use workspace from session (already fetched via getWithWorkspace)
+  const workspace = session.workspace;
   if (!workspace) {
-    return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
+    return NextResponse.json({ error: 'Workspace not found for this session' }, { status: 404 });
   }
 
   if (workspace.status !== 'ready') {

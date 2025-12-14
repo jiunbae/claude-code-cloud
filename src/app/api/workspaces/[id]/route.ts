@@ -114,11 +114,11 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   }
 
   try {
-    // Delete filesystem directory
-    await workspaceManager.delete(auth.userId, workspace.slug);
-
-    // Delete from database
+    // Delete from database first (safer - orphaned directories can be cleaned up later)
     workspaceStore.delete(id);
+
+    // Then delete filesystem directory
+    await workspaceManager.delete(auth.userId, workspace.slug);
 
     return NextResponse.json({ success: true });
   } catch (error) {
