@@ -63,18 +63,11 @@ jobs:
           script: |
             set -e
 
-            # Debug: find docker location
-            echo "=== Debug Info ==="
-            whoami
-            id
-            echo "PATH=$PATH"
-
             # Find docker binary
             DOCKER_BIN=""
             for p in /usr/local/bin/docker /usr/bin/docker /volume1/@appstore/ContainerManager/usr/bin/docker; do
               if [ -x "$p" ]; then
                 DOCKER_BIN="$p"
-                echo "Found docker at: $p"
                 break
               fi
             done
@@ -83,10 +76,6 @@ jobs:
               echo "ERROR: docker not found"
               exit 1
             fi
-
-            echo "sudo permissions:"
-            sudo -n -l || echo "sudo -n -l failed"
-            echo "=== End Debug ==="
 
             cd "${{ secrets.NAS_DEPLOY_PATH }}"
 
