@@ -3,7 +3,7 @@
 import { useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
-import type { PublicUser, RegisterRequest, LoginRequest } from '@/types/auth';
+import type { PublicUser, LoginRequest } from '@/types/auth';
 
 const API_BASE = '/api/auth';
 
@@ -40,32 +40,6 @@ export function useAuth() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Register
-  const register = useCallback(
-    async (data: RegisterRequest): Promise<{ success: boolean; error?: string; field?: string }> => {
-      try {
-        const response = await fetch(`${API_BASE}/register`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-          credentials: 'include',
-        });
-
-        const result = await response.json();
-
-        if (response.ok) {
-          setUser(result.user);
-          return { success: true };
-        }
-
-        return { success: false, error: result.error, field: result.field };
-      } catch {
-        return { success: false, error: 'Registration failed' };
-      }
-    },
-    [setUser]
-  );
 
   // Login
   const login = useCallback(
@@ -135,7 +109,6 @@ export function useAuth() {
     user,
     isLoading,
     isAuthenticated,
-    register,
     login,
     logout,
     updateProfile,

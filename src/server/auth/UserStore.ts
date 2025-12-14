@@ -2,7 +2,7 @@ import Database from 'better-sqlite3';
 import { nanoid } from 'nanoid';
 import path from 'path';
 import fs from 'fs';
-import type { User, PublicUser } from '@/types/auth';
+import type { User, PublicUser, UserRole } from '@/types/auth';
 
 // Database path configuration
 const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data/db/claude-cloud.db');
@@ -34,6 +34,7 @@ class UserStore {
         email TEXT UNIQUE NOT NULL,
         username TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
+        role TEXT DEFAULT 'user',
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         last_login_at TEXT,
@@ -43,6 +44,13 @@ class UserStore {
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
       CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
     `);
+
+    // Add role column if it doesn't exist (for existing databases)
+    try {
+      this._db!.exec(`ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'`);
+    } catch {
+      // Column already exists
+    }
 
     // Add owner_id column to sessions if it doesn't exist
     try {
@@ -68,18 +76,53 @@ class UserStore {
   /**
    * Create a new user
    */
-  create(email: string, username: string, passwordHash: string): User {
+  create(email: string, username: string, passwordHash: string, role: UserRole = 'user'): User {
     const id = nanoid(12);
     const now = new Date().toISOString();
 
     const stmt = this.db.prepare(`
-      INSERT INTO users (id, email, username, password_hash, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO users (id, email, username, password_hash, role, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
 
-    stmt.run(id, email.toLowerCase(), username, passwordHash, now, now);
+    stmt.run(id, email.toLowerCase(), username, passwordHash, role, now, now);
 
     return this.getById(id)!;
+  }
+
+  /**
+   * Check if user is admin
+   */
+  isAdmin(userId: string): boolean {
+    const user = this.getById(userId);
+    return user?.role === 'admin';
+  }
+
+  /**
+   * Initialize admin account from environment variables
+   * Only creates if no users exist
+   */
+  async initAdminAccount(): Promise<void> {
+    const adminEmail = process.env.ADMIN_EMAIL;
+    const adminUsername = process.env.ADMIN_USERNAME;
+    const adminPassword = process.env.ADMIN_PASSWORD;
+
+    // Skip if env vars not set
+    if (!adminEmail || !adminUsername || !adminPassword) {
+      return;
+    }
+
+    // Skip if users already exist
+    if (this.count() > 0) {
+      return;
+    }
+
+    // Import dynamically to avoid circular dependency
+    const { hashPassword } = await import('./password');
+    const passwordHash = await hashPassword(adminPassword);
+
+    this.create(adminEmail, adminUsername, passwordHash, 'admin');
+    console.log(`[Auth] Initial admin account created: ${adminUsername}`);
   }
 
   /**
@@ -121,7 +164,7 @@ class UserStore {
   /**
    * Update user profile
    */
-  update(id: string, updates: Partial<Pick<User, 'email' | 'username' | 'isActive'>>): User | null {
+  update(id: string, updates: Partial<Pick<User, 'email' | 'username' | 'role' | 'isActive'>>): User | null {
     const user = this.getById(id);
     if (!user) return null;
 
@@ -135,6 +178,10 @@ class UserStore {
     if (updates.username !== undefined) {
       fields.push('username = ?');
       values.push(updates.username);
+    }
+    if (updates.role !== undefined) {
+      fields.push('role = ?');
+      values.push(updates.role);
     }
     if (updates.isActive !== undefined) {
       fields.push('is_active = ?');
@@ -223,6 +270,7 @@ class UserStore {
       id: user.id,
       email: user.email,
       username: user.username,
+      role: user.role,
       createdAt: user.createdAt,
       lastLoginAt: user.lastLoginAt,
     };
@@ -243,6 +291,7 @@ class UserStore {
       id: row.id,
       email: row.email,
       username: row.username,
+      role: (row.role as UserRole) || 'user',
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
       lastLoginAt: row.last_login_at ? new Date(row.last_login_at) : null,
@@ -257,6 +306,7 @@ interface UserRow {
   email: string;
   username: string;
   password_hash: string;
+  role: string;
   created_at: string;
   updated_at: string;
   last_login_at: string | null;
