@@ -6,9 +6,9 @@ services:
     container_name: claude-code-cloud
     user: "${PUID:-1000}:${PGID:-100}"
     ports:
-      - "3000:3000"    # Next.js Web UI
-      - "3001:3001"    # WebSocket (Terminal)
-      - "3003:3003"    # PTY API
+      - "13000:3000"   # Next.js Web UI (external 13000 → internal 3000)
+      - "13001:3001"   # WebSocket (Terminal)
+      - "13003:3003"   # PTY API
     volumes:
       # Session data persistence
       - claude-data:/app/data
