@@ -82,6 +82,17 @@ mkdir -p /app/data/db /app/data/sessions 2>/dev/null || true\n\
 mkdir -p "${WORKSPACE_ROOT:-/workspace}/workspaces" 2>/dev/null || gosu "$PUID:$PGID" mkdir -p "${WORKSPACE_ROOT:-/workspace}/workspaces" 2>/dev/null || true\n\
 # If running as root, switch to nodejs; otherwise run directly\n\
 if [ "$(id -u)" = "0" ]; then\n\
+  # Ensure group exists for PGID\n\
+  if ! getent group "$PGID" >/dev/null; then\n\
+    addgroup --gid "$PGID" hostgroup >/dev/null 2>&1 || groupadd -g "$PGID" hostgroup >/dev/null 2>&1 || true\n\
+  fi\n\
+  # Ensure user exists for PUID\n\
+  if ! getent passwd "$PUID" >/dev/null; then\n\
+    adduser --uid "$PUID" --gid "$PGID" --home /home/nodejs --disabled-password --gecos "" hostuser >/dev/null 2>&1 \\\n\
+      || useradd -u "$PUID" -g "$PGID" -d /home/nodejs -s /bin/sh hostuser >/dev/null 2>&1 || true\n\
+  fi\n\
+  mkdir -p /home/nodejs\n\
+  chown -R "$PUID:$PGID" /home/nodejs 2>/dev/null || true\n\
   chown -R "$PUID:$PGID" /app/data 2>/dev/null || true\n\
   chown -R "$PUID:$PGID" "${WORKSPACE_ROOT:-/workspace}/workspaces" 2>/dev/null || true\n\
   exec gosu "$PUID:$PGID" "$@"\n\
