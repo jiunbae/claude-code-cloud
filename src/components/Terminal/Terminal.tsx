@@ -23,8 +23,10 @@ function getDefaultWsUrl(): string {
   const wsPort =
     process.env.NEXT_PUBLIC_WS_PORT ||
     (process.env.NEXT_PUBLIC_WS_HOST ? defaultPort.toString() : window.location.port || defaultPort);
+  const wsPath = process.env.NEXT_PUBLIC_WS_PATH || '';
+  const normalizedPath = wsPath.startsWith('/') ? wsPath : wsPath ? `/${wsPath}` : '';
 
-  return `${wsProtocol}://${wsHost}:${wsPort}`;
+  return `${wsProtocol}://${wsHost}:${wsPort}${normalizedPath}`;
 }
 
 export default function Terminal({

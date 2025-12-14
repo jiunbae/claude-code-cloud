@@ -36,6 +36,11 @@ services:
       # Optional: Git clone credentials (for HTTPS git URLs)
       - GIT_CLONE_TOKEN=${GIT_CLONE_TOKEN:-}
       - GIT_CLONE_USERNAME=${GIT_CLONE_USERNAME:-x-access-token}
+      # WebSocket public endpoint (when proxied through Cloudflare tunnel)
+      - NEXT_PUBLIC_WS_PROTOCOL=${NEXT_PUBLIC_WS_PROTOCOL:-wss}
+      - NEXT_PUBLIC_WS_HOST=${NEXT_PUBLIC_WS_HOST:-}
+      - NEXT_PUBLIC_WS_PORT=${NEXT_PUBLIC_WS_PORT:-443}
+      - NEXT_PUBLIC_WS_PATH=${NEXT_PUBLIC_WS_PATH:-/ws}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
