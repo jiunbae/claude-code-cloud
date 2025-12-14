@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sessionStore } from '@/server/session/SessionStore';
-import { workspaceStore } from '@/server/workspace/WorkspaceStore';
 import { workspaceManager } from '@/server/workspace/WorkspaceManager';
 import { fileSystemManager } from '@/server/files/FileSystemManager';
 
@@ -12,16 +11,16 @@ type RouteParams = {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
-    const session = sessionStore.get(id);
+    const session = sessionStore.getWithWorkspace(id);
 
     if (!session) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
-    // Get workspace to determine project path
-    const workspace = workspaceStore.get(session.workspaceId);
+    // Use workspace from session (already fetched via getWithWorkspace)
+    const workspace = session.workspace;
     if (!workspace) {
-      return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Workspace not found for this session' }, { status: 404 });
     }
 
     // Get actual filesystem path from workspace
