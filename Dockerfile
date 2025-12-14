@@ -83,6 +83,7 @@ fi\n\
 # If running as root, switch to nodejs; otherwise run directly\n\
 if [ "$(id -u)" = "0" ]; then\n\
   chown -R nodejs:nodejs /app/data 2>/dev/null || true\n\
+  chown -R nodejs:nodejs "${WORKSPACE_ROOT:-/workspace}/workspaces" 2>/dev/null || true\n\
   exec gosu nodejs "$@"\n\
 else\n\
   exec "$@"\n\

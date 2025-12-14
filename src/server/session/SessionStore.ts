@@ -27,6 +27,27 @@ class SessionStore {
   }
 
   private initSchema(): void {
+    // Ensure workspaces table exists before creating sessions (sessions join against it)
+    this._db!.exec(`
+      CREATE TABLE IF NOT EXISTS workspaces (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        slug TEXT NOT NULL,
+        description TEXT,
+        status TEXT NOT NULL DEFAULT 'ready',
+        source_type TEXT NOT NULL DEFAULT 'empty',
+        git_url TEXT,
+        git_branch TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        owner_id TEXT NOT NULL,
+        UNIQUE(owner_id, slug)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_workspaces_owner ON workspaces(owner_id);
+      CREATE INDEX IF NOT EXISTS idx_workspaces_slug ON workspaces(slug);
+    `);
+
     // Use _db directly since this is called during initialization
     this._db!.exec(`
       CREATE TABLE IF NOT EXISTS sessions (
