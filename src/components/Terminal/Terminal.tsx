@@ -11,14 +11,20 @@ interface TerminalProps {
   readOnly?: boolean;
 }
 
-// Generate default WebSocket URL based on current page location
-// WebSocket server always runs on port 3001 as a separate process
+// Generate default WebSocket URL based on current page location and env vars
 function getDefaultWsUrl(): string {
-  const wsPort = 3001;
-  if (typeof window === 'undefined') return `ws://localhost:${wsPort}`;
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const host = window.location.hostname;
-  return `${protocol}//${host}:${wsPort}`;
+  const defaultPort = 3001;
+  if (typeof window === 'undefined') return `ws://localhost:${defaultPort}`;
+
+  const wsProtocol =
+    (process.env.NEXT_PUBLIC_WS_PROTOCOL as 'ws' | 'wss' | undefined) ||
+    (window.location.protocol === 'https:' ? 'wss' : 'ws');
+  const wsHost = process.env.NEXT_PUBLIC_WS_HOST || window.location.hostname;
+  const wsPort =
+    process.env.NEXT_PUBLIC_WS_PORT ||
+    (process.env.NEXT_PUBLIC_WS_HOST ? defaultPort.toString() : window.location.port || defaultPort);
+
+  return `${wsProtocol}://${wsHost}:${wsPort}`;
 }
 
 export default function Terminal({
