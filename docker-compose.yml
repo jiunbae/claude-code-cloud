@@ -25,6 +25,10 @@ services:
       - WS_PORT=3001
       - PTY_API_PORT=3003
       - JWT_SECRET=${JWT_SECRET:-change-this-secret-in-production}
+      # Initial admin account (created on first startup)
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
