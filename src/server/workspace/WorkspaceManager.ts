@@ -75,6 +75,7 @@ This workspace is ready for your project files.
     gitUrl: string,
     branch?: string
   ): Promise<void> {
+    const resolvedGitUrl = this.buildGitUrl(gitUrl);
     const wsPath = this.getWorkspacePath(ownerId, slug);
     const parentDir = path.dirname(wsPath);
 
@@ -92,7 +93,7 @@ This workspace is ready for your project files.
       args.push('-b', branch);
     }
     args.push('--depth', '1'); // Shallow clone for faster initial setup
-    args.push(gitUrl, slug);
+    args.push(resolvedGitUrl, slug);
 
     // Execute git clone
     await this.execGit(parentDir, args);
@@ -200,6 +201,28 @@ This workspace is ready for your project files.
         reject(new Error(`Failed to spawn git: ${err.message}`));
       });
     });
+  }
+
+  /**
+   * Build git URL with optional credentials injected via env vars
+   */
+  private buildGitUrl(gitUrl: string): string {
+    const token = process.env.GIT_CLONE_TOKEN;
+    const username = process.env.GIT_CLONE_USERNAME || 'x-access-token';
+
+    // Only inject token for HTTPS URLs when a token is provided
+    try {
+      const url = new URL(gitUrl);
+      if (url.protocol.startsWith('http') && token) {
+        url.username = encodeURIComponent(username);
+        url.password = encodeURIComponent(token);
+        return url.toString();
+      }
+    } catch {
+      // If URL parsing fails (e.g., SSH format), return original
+    }
+
+    return gitUrl;
   }
 }
 

@@ -17,6 +17,8 @@ services:
       - ${ANTHROPIC_CONFIG:-/volume1/docker/claude-code-cloud/.anthropic}:/home/nodejs/.anthropic:ro
       # Claude settings
       - ${CLAUDE_CONFIG:-/volume1/docker/claude-code-cloud/.claude}:/home/nodejs/.claude:rw
+      # SSH (for git clone over SSH)
+      - ${SSH_ROOT:-/volume1/docker/claude-code-cloud/.ssh}:/home/nodejs/.ssh:ro
     environment:
       - NODE_ENV=production
       - DATABASE_PATH=/app/data/db/claude-cloud.db
@@ -31,6 +33,9 @@ services:
       # Runtime UID/GID (match host user that owns WORKSPACE_ROOT to avoid EACCES)
       - PUID=${PUID:-1000}
       - PGID=${PGID:-1000}
+      # Optional: Git clone credentials (for HTTPS git URLs)
+      - GIT_CLONE_TOKEN=${GIT_CLONE_TOKEN:-}
+      - GIT_CLONE_USERNAME=${GIT_CLONE_USERNAME:-x-access-token}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
