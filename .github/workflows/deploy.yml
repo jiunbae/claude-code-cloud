@@ -37,6 +37,11 @@ jobs:
         with:
           driver-opts: |
             network=host
+          # Allow pushing to insecure HTTP registry on Tailscale
+          config-inline: |
+            [registry."${{ env.REGISTRY }}"]
+              http = true
+              insecure = true
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
