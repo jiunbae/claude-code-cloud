@@ -4,6 +4,7 @@ services:
   app:
     image: registry.im-si.org/claude-code-cloud:latest
     container_name: claude-code-cloud
+    user: "${PUID:-1000}:${PGID:-100}"
     ports:
       - "3000:3000"    # Next.js Web UI
       - "3001:3001"    # WebSocket (Terminal)

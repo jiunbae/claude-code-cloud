@@ -71,17 +71,22 @@ COPY --from=builder /app/tsconfig.json ./
 # Copy server source files (will be executed with tsx at runtime)
 COPY --from=builder /app/src ./src
 
-# Create entrypoint script
+# Create entrypoint script (supports both root and non-root execution)
 RUN echo '#!/bin/sh\n\
 set -e\n\
-mkdir -p /app/data/db /app/data/sessions\n\
-chown -R nodejs:nodejs /app/data\n\
+# Create directories (will work if we have permissions)\n\
+mkdir -p /app/data/db /app/data/sessions 2>/dev/null || true\n\
 # Create workspace directories if writable\n\
 if [ -w "${WORKSPACE_ROOT:-/workspace}" ]; then\n\
-  mkdir -p "${WORKSPACE_ROOT:-/workspace}/workspaces"\n\
-  chown -R nodejs:nodejs "${WORKSPACE_ROOT:-/workspace}/workspaces" 2>/dev/null || true\n\
+  mkdir -p "${WORKSPACE_ROOT:-/workspace}/workspaces" 2>/dev/null || true\n\
 fi\n\
-exec gosu nodejs "$@"' > /usr/local/bin/docker-entrypoint.sh \
+# If running as root, switch to nodejs; otherwise run directly\n\
+if [ "$(id -u)" = "0" ]; then\n\
+  chown -R nodejs:nodejs /app/data 2>/dev/null || true\n\
+  exec gosu nodejs "$@"\n\
+else\n\
+  exec "$@"\n\
+fi' > /usr/local/bin/docker-entrypoint.sh \
     && chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Create data directory (will be overlaid by volume mount, entrypoint recreates at runtime)
