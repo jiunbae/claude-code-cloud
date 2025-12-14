@@ -61,7 +61,18 @@ jobs:
           username: ${{ secrets.NAS_USERNAME }}
           key: ${{ secrets.NAS_SSH_KEY }}
           script: |
-            cd ${{ secrets.NAS_DEPLOY_PATH }}
-            sudo docker compose pull
-            sudo docker compose up -d
-            sudo docker image prune -f
+            set -e
+
+            # Debug info
+            whoami
+            id
+            command -v docker
+            sudo -n -l
+
+            export PATH="/usr/local/bin:/usr/bin:/bin:/volume1/@appstore/ContainerManager/usr/bin:$PATH"
+
+            cd "${{ secrets.NAS_DEPLOY_PATH }}"
+
+            sudo -n -- /usr/local/bin/docker compose pull
+            sudo -n -- /usr/local/bin/docker compose up -d
+            sudo -n -- /usr/local/bin/docker image prune -f
