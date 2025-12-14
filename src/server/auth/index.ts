@@ -9,4 +9,5 @@ export {
   unauthorizedResponse,
   forbiddenResponse,
 } from './middleware';
+export { requireAdmin, isAdmin } from './adminMiddleware';
 export type { AuthContext } from './middleware';

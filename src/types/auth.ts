@@ -1,8 +1,12 @@
+// User role type
+export type UserRole = 'admin' | 'user';
+
 // User types
 export interface User {
   id: string;
   email: string;
   username: string;
+  role: UserRole;
   createdAt: Date;
   updatedAt: Date;
   lastLoginAt: Date | null;
@@ -14,6 +18,7 @@ export interface PublicUser {
   id: string;
   email: string;
   username: string;
+  role: UserRole;
   createdAt: Date;
   lastLoginAt: Date | null;
 }
@@ -23,6 +28,7 @@ export interface JWTPayload {
   userId: string;
   email: string;
   username: string;
+  role: UserRole;
   iat?: number;
   exp?: number;
 }

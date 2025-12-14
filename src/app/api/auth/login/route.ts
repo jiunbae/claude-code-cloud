@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       email: user.email,
       username: user.username,
+      role: user.role,
     });
 
     // Update last login
