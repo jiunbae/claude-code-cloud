@@ -46,23 +46,22 @@ class UserStore {
     `);
 
     // Add role column if it doesn't exist (for existing databases)
-    try {
+    const userColumns = this._db!.pragma('table_info(users)') as { name: string }[];
+    if (!userColumns.some((col) => col.name === 'role')) {
       this._db!.exec(`ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'`);
-    } catch {
-      // Column already exists
     }
 
-    // Add owner_id column to sessions if it doesn't exist
+    // Add owner_id and is_public columns to sessions if they don't exist
     try {
-      this._db!.exec(`ALTER TABLE sessions ADD COLUMN owner_id TEXT DEFAULT ''`);
+      const sessionColumns = this._db!.pragma('table_info(sessions)') as { name: string }[];
+      if (!sessionColumns.some((col) => col.name === 'owner_id')) {
+        this._db!.exec(`ALTER TABLE sessions ADD COLUMN owner_id TEXT DEFAULT ''`);
+      }
+      if (!sessionColumns.some((col) => col.name === 'is_public')) {
+        this._db!.exec(`ALTER TABLE sessions ADD COLUMN is_public INTEGER DEFAULT 0`);
+      }
     } catch {
-      // Column already exists
-    }
-
-    try {
-      this._db!.exec(`ALTER TABLE sessions ADD COLUMN is_public INTEGER DEFAULT 0`);
-    } catch {
-      // Column already exists
+      // sessions table might not exist yet
     }
 
     // Create index for owner_id
