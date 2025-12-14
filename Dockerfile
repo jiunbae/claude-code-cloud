@@ -76,6 +76,11 @@ RUN echo '#!/bin/sh\n\
 set -e\n\
 mkdir -p /app/data/db /app/data/sessions\n\
 chown -R nodejs:nodejs /app/data\n\
+# Create workspace directories if writable\n\
+if [ -w "${WORKSPACE_ROOT:-/workspace}" ]; then\n\
+  mkdir -p "${WORKSPACE_ROOT:-/workspace}/workspaces"\n\
+  chown -R nodejs:nodejs "${WORKSPACE_ROOT:-/workspace}/workspaces" 2>/dev/null || true\n\
+fi\n\
 exec gosu nodejs "$@"' > /usr/local/bin/docker-entrypoint.sh \
     && chmod +x /usr/local/bin/docker-entrypoint.sh
 
