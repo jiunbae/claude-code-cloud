@@ -22,8 +22,10 @@ function getDefaultWsUrl(): string {
   const wsHost = process.env.NEXT_PUBLIC_WS_HOST || window.location.hostname;
   const wsPort =
     process.env.NEXT_PUBLIC_WS_PORT ||
-    (process.env.NEXT_PUBLIC_WS_HOST ? defaultPort.toString() : window.location.port || defaultPort);
-  const wsPath = process.env.NEXT_PUBLIC_WS_PATH || '';
+    (process.env.NEXT_PUBLIC_WS_HOST
+      ? defaultPort.toString()
+      : window.location.port || (window.location.protocol === 'https:' ? '443' : '80'));
+  const wsPath = process.env.NEXT_PUBLIC_WS_PATH || '/ws';
   const normalizedPath = wsPath.startsWith('/') ? wsPath : wsPath ? `/${wsPath}` : '';
 
   return `${wsProtocol}://${wsHost}:${wsPort}${normalizedPath}`;
