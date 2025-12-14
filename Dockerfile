@@ -74,6 +74,8 @@ COPY --from=builder /app/src ./src
 # Create entrypoint script (supports both root and non-root execution)
 RUN echo '#!/bin/sh\n\
 set -e\n\
+PUID="${PUID:-1000}"\n\
+PGID="${PGID:-1000}"\n\
 # Create directories (will work if we have permissions)\n\
 mkdir -p /app/data/db /app/data/sessions 2>/dev/null || true\n\
 # Create workspace directories if writable\n\
@@ -82,9 +84,9 @@ if [ -w "${WORKSPACE_ROOT:-/workspace}" ]; then\n\
 fi\n\
 # If running as root, switch to nodejs; otherwise run directly\n\
 if [ "$(id -u)" = "0" ]; then\n\
-  chown -R nodejs:nodejs /app/data 2>/dev/null || true\n\
-  chown -R nodejs:nodejs "${WORKSPACE_ROOT:-/workspace}/workspaces" 2>/dev/null || true\n\
-  exec gosu nodejs "$@"\n\
+  chown -R "$PUID:$PGID" /app/data 2>/dev/null || true\n\
+  chown -R "$PUID:$PGID" "${WORKSPACE_ROOT:-/workspace}/workspaces" 2>/dev/null || true\n\
+  exec gosu "$PUID:$PGID" "$@"\n\
 else\n\
   exec "$@"\n\
 fi' > /usr/local/bin/docker-entrypoint.sh \
