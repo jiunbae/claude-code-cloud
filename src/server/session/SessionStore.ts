@@ -2,7 +2,7 @@ import Database from 'better-sqlite3';
 import { nanoid } from 'nanoid';
 import path from 'path';
 import fs from 'fs';
-import type { Session, CreateSessionRequest, SessionStatus, SessionConfig } from '@/types';
+import type { Session, CreateSessionRequest, SessionStatus, SessionConfig, Workspace } from '@/types';
 
 // Database path configuration
 const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data/db/claude-cloud.db');
@@ -32,14 +32,16 @@ class SessionStore {
       CREATE TABLE IF NOT EXISTS sessions (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
-        project_path TEXT NOT NULL,
+        workspace_id TEXT NOT NULL,
         status TEXT NOT NULL DEFAULT 'idle',
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         last_active_at TEXT NOT NULL,
         config_cols INTEGER NOT NULL DEFAULT 120,
         config_rows INTEGER NOT NULL DEFAULT 30,
-        config_env TEXT DEFAULT '{}'
+        config_env TEXT DEFAULT '{}',
+        owner_id TEXT DEFAULT '',
+        is_public INTEGER DEFAULT 0
       );
 
       CREATE INDEX IF NOT EXISTS idx_sessions_last_active
@@ -47,27 +49,29 @@ class SessionStore {
 
       CREATE INDEX IF NOT EXISTS idx_sessions_status
         ON sessions(status);
+
+      CREATE INDEX IF NOT EXISTS idx_sessions_owner
+        ON sessions(owner_id);
+
+      CREATE INDEX IF NOT EXISTS idx_sessions_workspace
+        ON sessions(workspace_id);
     `);
 
-    // Add owner_id column if it doesn't exist
+    // Migration: Add workspace_id column if it doesn't exist (for existing databases with project_path)
     try {
-      this._db!.exec(`ALTER TABLE sessions ADD COLUMN owner_id TEXT DEFAULT ''`);
-    } catch {
-      // Column already exists
-    }
+      // Check if project_path column exists
+      const tableInfo = this._db!.prepare("PRAGMA table_info(sessions)").all() as { name: string }[];
+      const hasProjectPath = tableInfo.some(col => col.name === 'project_path');
+      const hasWorkspaceId = tableInfo.some(col => col.name === 'workspace_id');
 
-    // Add is_public column if it doesn't exist
-    try {
-      this._db!.exec(`ALTER TABLE sessions ADD COLUMN is_public INTEGER DEFAULT 0`);
+      if (hasProjectPath && !hasWorkspaceId) {
+        // Old schema - need migration
+        console.log('Migrating sessions table from project_path to workspace_id...');
+        this._db!.exec(`ALTER TABLE sessions ADD COLUMN workspace_id TEXT DEFAULT ''`);
+        this._db!.exec(`CREATE INDEX IF NOT EXISTS idx_sessions_workspace ON sessions(workspace_id)`);
+      }
     } catch {
-      // Column already exists
-    }
-
-    // Create index for owner_id
-    try {
-      this._db!.exec(`CREATE INDEX IF NOT EXISTS idx_sessions_owner ON sessions(owner_id)`);
-    } catch {
-      // Index might already exist
+      // Migration not needed or already done
     }
   }
 
@@ -77,7 +81,7 @@ class SessionStore {
 
     const stmt = this.db.prepare(`
       INSERT INTO sessions (
-        id, name, project_path, status,
+        id, name, workspace_id, status,
         created_at, updated_at, last_active_at,
         config_cols, config_rows, config_env,
         owner_id, is_public
@@ -87,7 +91,7 @@ class SessionStore {
     stmt.run(
       id,
       request.name,
-      request.projectPath,
+      request.workspaceId,
       now,
       now,
       now,
@@ -107,32 +111,74 @@ class SessionStore {
     return row ? this.rowToSession(row) : null;
   }
 
+  // Get session with workspace info
+  getWithWorkspace(id: string): Session | null {
+    const stmt = this.db.prepare(`
+      SELECT s.*,
+        w.id as ws_id, w.name as ws_name, w.slug as ws_slug,
+        w.description as ws_description, w.status as ws_status,
+        w.source_type as ws_source_type, w.git_url as ws_git_url,
+        w.git_branch as ws_git_branch, w.created_at as ws_created_at,
+        w.updated_at as ws_updated_at, w.owner_id as ws_owner_id
+      FROM sessions s
+      LEFT JOIN workspaces w ON s.workspace_id = w.id
+      WHERE s.id = ?
+    `);
+    const row = stmt.get(id) as (SessionRow & WorkspaceJoinRow) | undefined;
+    return row ? this.rowToSessionWithWorkspace(row) : null;
+  }
+
   getAll(): Session[] {
     const stmt = this.db.prepare(`SELECT * FROM sessions ORDER BY last_active_at DESC`);
     const rows = stmt.all() as SessionRow[];
     return rows.map((row) => this.rowToSession(row));
   }
 
-  // Get sessions by owner
+  // Get sessions by owner with workspace info
   getByOwner(ownerId: string): Session[] {
     const stmt = this.db.prepare(`
+      SELECT s.*,
+        w.id as ws_id, w.name as ws_name, w.slug as ws_slug,
+        w.description as ws_description, w.status as ws_status,
+        w.source_type as ws_source_type, w.git_url as ws_git_url,
+        w.git_branch as ws_git_branch, w.created_at as ws_created_at,
+        w.updated_at as ws_updated_at, w.owner_id as ws_owner_id
+      FROM sessions s
+      LEFT JOIN workspaces w ON s.workspace_id = w.id
+      WHERE s.owner_id = ?
+      ORDER BY s.last_active_at DESC
+    `);
+    const rows = stmt.all(ownerId) as (SessionRow & WorkspaceJoinRow)[];
+    return rows.map((row) => this.rowToSessionWithWorkspace(row));
+  }
+
+  // Get sessions by workspace
+  getByWorkspace(workspaceId: string): Session[] {
+    const stmt = this.db.prepare(`
       SELECT * FROM sessions
-      WHERE owner_id = ?
+      WHERE workspace_id = ?
       ORDER BY last_active_at DESC
     `);
-    const rows = stmt.all(ownerId) as SessionRow[];
+    const rows = stmt.all(workspaceId) as SessionRow[];
     return rows.map((row) => this.rowToSession(row));
   }
 
   // Get accessible sessions (owned + public)
   getAccessible(userId: string): Session[] {
     const stmt = this.db.prepare(`
-      SELECT * FROM sessions
-      WHERE owner_id = ? OR is_public = 1
-      ORDER BY last_active_at DESC
+      SELECT s.*,
+        w.id as ws_id, w.name as ws_name, w.slug as ws_slug,
+        w.description as ws_description, w.status as ws_status,
+        w.source_type as ws_source_type, w.git_url as ws_git_url,
+        w.git_branch as ws_git_branch, w.created_at as ws_created_at,
+        w.updated_at as ws_updated_at, w.owner_id as ws_owner_id
+      FROM sessions s
+      LEFT JOIN workspaces w ON s.workspace_id = w.id
+      WHERE s.owner_id = ? OR s.is_public = 1
+      ORDER BY s.last_active_at DESC
     `);
-    const rows = stmt.all(userId) as SessionRow[];
-    return rows.map((row) => this.rowToSession(row));
+    const rows = stmt.all(userId) as (SessionRow & WorkspaceJoinRow)[];
+    return rows.map((row) => this.rowToSessionWithWorkspace(row));
   }
 
   // Check if user is owner
@@ -162,9 +208,9 @@ class SessionStore {
       fields.push('name = ?');
       values.push(updates.name);
     }
-    if (updates.projectPath !== undefined) {
-      fields.push('project_path = ?');
-      values.push(updates.projectPath);
+    if (updates.workspaceId !== undefined) {
+      fields.push('workspace_id = ?');
+      values.push(updates.workspaceId);
     }
     if (updates.status !== undefined) {
       fields.push('status = ?');
@@ -251,7 +297,7 @@ class SessionStore {
     return {
       id: row.id,
       name: row.name,
-      projectPath: row.project_path,
+      workspaceId: row.workspace_id,
       status: row.status as SessionStatus,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
@@ -265,13 +311,36 @@ class SessionStore {
       isPublic: row.is_public === 1,
     };
   }
+
+  // Convert database row with workspace join to Session object
+  private rowToSessionWithWorkspace(row: SessionRow & WorkspaceJoinRow): Session {
+    const session = this.rowToSession(row);
+
+    if (row.ws_id) {
+      session.workspace = {
+        id: row.ws_id,
+        name: row.ws_name,
+        slug: row.ws_slug,
+        description: row.ws_description || undefined,
+        status: row.ws_status as Workspace['status'],
+        sourceType: row.ws_source_type as 'empty' | 'git',
+        gitUrl: row.ws_git_url || undefined,
+        gitBranch: row.ws_git_branch || undefined,
+        createdAt: new Date(row.ws_created_at),
+        updatedAt: new Date(row.ws_updated_at),
+        ownerId: row.ws_owner_id,
+      };
+    }
+
+    return session;
+  }
 }
 
 // Database row type
 interface SessionRow {
   id: string;
   name: string;
-  project_path: string;
+  workspace_id: string;
   status: string;
   created_at: string;
   updated_at: string;
@@ -281,6 +350,21 @@ interface SessionRow {
   config_env: string;
   owner_id: string;
   is_public: number;
+}
+
+// Workspace join row type
+interface WorkspaceJoinRow {
+  ws_id: string | null;
+  ws_name: string;
+  ws_slug: string;
+  ws_description: string | null;
+  ws_status: string;
+  ws_source_type: string;
+  ws_git_url: string | null;
+  ws_git_branch: string | null;
+  ws_created_at: string;
+  ws_updated_at: string;
+  ws_owner_id: string;
 }
 
 // Singleton instance

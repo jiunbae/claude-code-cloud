@@ -150,7 +150,7 @@ function SessionView() {
                   {session.status}
                 </span>
               </div>
-              <p className="text-xs text-gray-500 truncate max-w-[200px] sm:max-w-md font-mono">{session.projectPath}</p>
+              <p className="text-xs text-gray-500 truncate max-w-[200px] sm:max-w-md font-mono">{session.workspace?.name || session.workspace?.slug || 'Unknown workspace'}</p>
             </div>
           </div>
 
@@ -293,7 +293,7 @@ function SessionView() {
             </div>
           )
         ) : (
-          <FileExplorer sessionId={sessionId} projectPath={session.projectPath} />
+          <FileExplorer sessionId={sessionId} />
         )}
       </div>
 

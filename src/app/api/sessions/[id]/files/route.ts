@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sessionStore } from '@/server/session/SessionStore';
+import { workspaceManager } from '@/server/workspace/WorkspaceManager';
 import { fileSystemManager } from '@/server/files/FileSystemManager';
 
 type RouteParams = {
@@ -10,11 +11,20 @@ type RouteParams = {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
-    const session = sessionStore.get(id);
+    const session = sessionStore.getWithWorkspace(id);
 
     if (!session) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
+
+    // Use workspace from session (already fetched via getWithWorkspace)
+    const workspace = session.workspace;
+    if (!workspace) {
+      return NextResponse.json({ error: 'Workspace not found for this session' }, { status: 404 });
+    }
+
+    // Get actual filesystem path from workspace
+    const projectPath = workspaceManager.getWorkspacePath(workspace.ownerId, workspace.slug);
 
     const url = new URL(request.url);
     const depth = parseInt(url.searchParams.get('depth') || '3', 10);
@@ -22,7 +32,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // If path is provided, return file content
     if (filePath) {
-      const fullPath = `${session.projectPath}/${filePath}`;
+      const fullPath = `${projectPath}/${filePath}`;
       const info = await fileSystemManager.getFileInfo(fullPath);
 
       if (!info.exists) {
@@ -58,7 +68,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     // Return directory tree
-    const tree = await fileSystemManager.getTree(session.projectPath, depth);
+    const tree = await fileSystemManager.getTree(projectPath, depth);
     return NextResponse.json(tree);
   } catch (error) {
     console.error('Files API error:', error);
