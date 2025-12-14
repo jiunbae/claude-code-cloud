@@ -7,11 +7,10 @@ import type { FileNode, FileContent } from '@/types';
 
 interface FileExplorerProps {
   sessionId: string;
-  projectPath: string;
   onFileChange?: (event: { type: string; path: string }) => void;
 }
 
-export default function FileExplorer({ sessionId, projectPath }: FileExplorerProps) {
+export default function FileExplorer({ sessionId }: FileExplorerProps) {
   const [tree, setTree] = useState<FileNode | null>(null);
   const [selectedFile, setSelectedFile] = useState<FileContent | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,8 +63,9 @@ export default function FileExplorer({ sessionId, projectPath }: FileExplorerPro
     async (path: string) => {
       setSelectedPath(path);
 
-      // Calculate relative path from project root
-      const relativePath = path.replace(projectPath + '/', '');
+      // Calculate relative path from project root (using tree root path)
+      const rootPath = tree?.path || '';
+      const relativePath = rootPath ? path.replace(rootPath + '/', '') : path;
 
       setFileLoading(true);
       setError(null);
@@ -101,7 +101,7 @@ export default function FileExplorer({ sessionId, projectPath }: FileExplorerPro
         setFileLoading(false);
       }
     },
-    [sessionId, projectPath, isMobile]
+    [sessionId, tree?.path, isMobile]
   );
 
   // Refresh tree

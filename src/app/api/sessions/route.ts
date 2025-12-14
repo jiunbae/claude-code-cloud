@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sessionStore } from '@/server/session/SessionStore';
+import { workspaceStore } from '@/server/workspace/WorkspaceStore';
 import { getAuthContext } from '@/server/auth';
 import type { CreateSessionRequest } from '@/types';
 
@@ -34,9 +35,40 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as CreateSessionRequest;
 
     // Validate required fields
-    if (!body.name || !body.projectPath) {
+    if (!body.name?.trim()) {
       return NextResponse.json(
-        { error: 'Name and projectPath are required' },
+        { error: 'Name is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!body.workspaceId?.trim()) {
+      return NextResponse.json(
+        { error: 'Workspace ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Verify workspace exists and user owns it
+    const workspace = workspaceStore.get(body.workspaceId);
+    if (!workspace) {
+      return NextResponse.json(
+        { error: 'Workspace not found' },
+        { status: 404 }
+      );
+    }
+
+    if (workspace.ownerId !== auth.userId) {
+      return NextResponse.json(
+        { error: 'Access denied to workspace' },
+        { status: 403 }
+      );
+    }
+
+    // Check workspace is ready
+    if (workspace.status !== 'ready') {
+      return NextResponse.json(
+        { error: `Workspace is not ready (status: ${workspace.status})` },
         { status: 400 }
       );
     }
@@ -44,7 +76,10 @@ export async function POST(request: NextRequest) {
     // Create session with owner
     const session = sessionStore.create(body, auth.userId);
 
-    return NextResponse.json({ session }, { status: 201 });
+    // Get session with workspace info
+    const sessionWithWorkspace = sessionStore.getWithWorkspace(session.id);
+
+    return NextResponse.json({ session: sessionWithWorkspace }, { status: 201 });
   } catch (error) {
     console.error('Failed to create session:', error);
     return NextResponse.json(

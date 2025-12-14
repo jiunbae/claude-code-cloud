@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sessionStore } from '@/server/session/SessionStore';
+import { workspaceStore } from '@/server/workspace/WorkspaceStore';
+import { workspaceManager } from '@/server/workspace/WorkspaceManager';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -10,11 +12,27 @@ const PTY_API_URL = process.env.PTY_API_URL || 'http://localhost:3003';
 // POST /api/sessions/:id/start - Start Claude Code process
 export async function POST(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
-  const session = sessionStore.get(id);
+  const session = sessionStore.getWithWorkspace(id);
 
   if (!session) {
     return NextResponse.json({ error: 'Session not found' }, { status: 404 });
   }
+
+  // Get workspace to determine project path
+  const workspace = workspaceStore.get(session.workspaceId);
+  if (!workspace) {
+    return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
+  }
+
+  if (workspace.status !== 'ready') {
+    return NextResponse.json(
+      { error: `Workspace is not ready (status: ${workspace.status})` },
+      { status: 400 }
+    );
+  }
+
+  // Get actual filesystem path from workspace
+  const projectPath = workspaceManager.getWorkspacePath(workspace.ownerId, workspace.slug);
 
   try {
     sessionStore.updateStatus(id, 'starting');
@@ -24,7 +42,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        projectPath: session.projectPath,
+        projectPath,
         config: session.config,
       }),
     });

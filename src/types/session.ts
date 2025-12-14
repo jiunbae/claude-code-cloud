@@ -1,9 +1,11 @@
+import type { Workspace } from './workspace';
+
 export type SessionStatus = 'idle' | 'starting' | 'running' | 'stopping' | 'error';
 
 export interface Session {
   id: string;
   name: string;
-  projectPath: string;
+  workspaceId: string;
   status: SessionStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -11,6 +13,7 @@ export interface Session {
   config: SessionConfig;
   ownerId?: string;
   isPublic?: boolean;
+  workspace?: Workspace; // 조회 시 포함
 }
 
 export interface SessionConfig {
@@ -21,7 +24,7 @@ export interface SessionConfig {
 
 export interface CreateSessionRequest {
   name: string;
-  projectPath: string;
+  workspaceId: string;
   config?: Partial<SessionConfig>;
 }
 
