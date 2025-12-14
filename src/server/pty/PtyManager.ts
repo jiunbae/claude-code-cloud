@@ -1,5 +1,6 @@
 import { spawn, IPty } from 'node-pty';
 import { EventEmitter } from 'events';
+import os from 'os';
 import type { SessionConfig, SessionStatus } from '@/types';
 
 interface PtySession {
@@ -42,6 +43,9 @@ export class PtyManager extends EventEmitter {
     const rows = config.rows ?? 30;
 
     try {
+      const homeDir = process.env.HOME || os.homedir() || '/home/nodejs';
+      console.log(`[PTY] Starting session ${sessionId} (cwd=${workDir})`);
+
       // Spawn claude CLI process
       const pty = spawn('claude', [], {
         name: 'xterm-256color',
@@ -51,6 +55,7 @@ export class PtyManager extends EventEmitter {
         env: {
           ...process.env,
           ...config.env,
+          HOME: homeDir,
           TERM: 'xterm-256color',
           COLORTERM: 'truecolor',
         },
@@ -87,6 +92,7 @@ export class PtyManager extends EventEmitter {
       // Handle exit
       pty.onExit(({ exitCode, signal }) => {
         session.status = 'idle';
+        console.log(`[PTY] Session ${sessionId} exited (code=${exitCode}, signal=${signal ?? 'none'})`);
         this.emit('exit', sessionId, exitCode, signal);
         this.sessions.delete(sessionId);
       });
@@ -95,6 +101,7 @@ export class PtyManager extends EventEmitter {
 
       return { pid: pty.pid };
     } catch (error) {
+      console.error(`[PTY] Failed to start session ${sessionId}:`, error);
       this.emit('error', sessionId, error as Error);
       throw error;
     }

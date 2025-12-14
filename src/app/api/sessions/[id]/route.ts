@@ -46,10 +46,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   // Get runtime info from PTY API
   const { isRunning, pid } = await getPtyStatus(id);
 
+  // If PTY is not running but DB still says running/starting, surface as idle
+  const effectiveStatus =
+    isRunning ? 'running' : (session.status === 'running' || session.status === 'starting') ? 'idle' : session.status;
+
   return NextResponse.json({
     session: {
       ...session,
-      status: isRunning ? 'running' : session.status,
+      status: effectiveStatus,
       pid,
     },
   });

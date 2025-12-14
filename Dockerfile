@@ -95,7 +95,8 @@ if [ "$(id -u)" = "0" ]; then\n\
   chown -R "$PUID:$PGID" /home/nodejs 2>/dev/null || true\n\
   chown -R "$PUID:$PGID" /app/data 2>/dev/null || true\n\
   chown -R "$PUID:$PGID" "${WORKSPACE_ROOT:-/workspace}/workspaces" 2>/dev/null || true\n\
-  exec gosu "$PUID:$PGID" "$@"\n\
+  USER_NAME="$(getent passwd "$PUID" | cut -d: -f1 2>/dev/null || echo hostuser)"\n\
+  exec gosu "$PUID:$PGID" env HOME=/home/nodejs USER="$USER_NAME" LOGNAME="$USER_NAME" "$@"\n\
 else\n\
   exec "$@"\n\
 fi' > /usr/local/bin/docker-entrypoint.sh \
