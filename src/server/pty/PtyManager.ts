@@ -1,6 +1,9 @@
 import { spawn, IPty } from 'node-pty';
 import { EventEmitter } from 'events';
 import os from 'os';
+import { spawnSync } from 'child_process';
+import fs from 'fs/promises';
+import path from 'path';
 import type { SessionConfig, SessionStatus } from '@/types';
 
 interface PtySession {
@@ -29,6 +32,27 @@ export class PtyManager extends EventEmitter {
     super();
   }
 
+  private resolveClaudeBinary(): string | null {
+    const result = spawnSync('sh', ['-lc', 'command -v claude'], {
+      encoding: 'utf8',
+    });
+    if (result.status === 0) {
+      const resolved = result.stdout.trim();
+      return resolved.length > 0 ? resolved : null;
+    }
+    return null;
+  }
+
+  private async resolveAnthropicApiKey(homeDir: string): Promise<string | null> {
+    const keyPath = path.join(homeDir, '.anthropic', 'api_key');
+    try {
+      const key = (await fs.readFile(keyPath, 'utf8')).trim();
+      return key.length > 0 ? key : null;
+    } catch {
+      return null;
+    }
+  }
+
   async startSession(
     sessionId: string,
     workDir: string,
@@ -43,22 +67,43 @@ export class PtyManager extends EventEmitter {
     const rows = config.rows ?? 30;
 
     try {
+      const claudeBinary = this.resolveClaudeBinary();
+      if (!claudeBinary) {
+        throw new Error('Claude CLI not found in PATH (expected `claude`). Install it in the container image.');
+      }
+
       const homeDir = process.env.HOME || os.homedir() || '/home/nodejs';
       console.log(`[PTY] Starting session ${sessionId} (cwd=${workDir})`);
 
+      const env: Record<string, string> = {
+        ...Object.entries(process.env).reduce<Record<string, string>>((acc, [key, value]) => {
+          if (value !== undefined) acc[key] = value;
+          return acc;
+        }, {}),
+        ...Object.entries(config.env ?? {}).reduce<Record<string, string>>((acc, [key, value]) => {
+          if (value !== undefined) acc[key] = String(value);
+          return acc;
+        }, {}),
+        HOME: homeDir,
+        TERM: 'xterm-256color',
+        COLORTERM: 'truecolor',
+      };
+
+      // If ANTHROPIC_API_KEY is not provided, try ~/.anthropic/api_key
+      if (!env.ANTHROPIC_API_KEY) {
+        const apiKey = await this.resolveAnthropicApiKey(homeDir);
+        if (apiKey) {
+          env.ANTHROPIC_API_KEY = apiKey;
+        }
+      }
+
       // Spawn claude CLI process
-      const pty = spawn('claude', [], {
+      const pty = spawn(claudeBinary, [], {
         name: 'xterm-256color',
         cols,
         rows,
         cwd: workDir,
-        env: {
-          ...process.env,
-          ...config.env,
-          HOME: homeDir,
-          TERM: 'xterm-256color',
-          COLORTERM: 'truecolor',
-        },
+        env,
       });
 
       const session: PtySession = {
@@ -93,6 +138,13 @@ export class PtyManager extends EventEmitter {
       pty.onExit(({ exitCode, signal }) => {
         session.status = 'idle';
         console.log(`[PTY] Session ${sessionId} exited (code=${exitCode}, signal=${signal ?? 'none'})`);
+        if (exitCode !== 0) {
+          const tailLines = session.outputBuffer.slice(-50).join('\n').trim();
+          if (tailLines) {
+            const tail = tailLines.length > 4000 ? `${tailLines.slice(-4000)}\n…(truncated)` : tailLines;
+            console.log(`[PTY] Session ${sessionId} output (tail):\n${tail}`);
+          }
+        }
         this.emit('exit', sessionId, exitCode, signal);
         this.sessions.delete(sessionId);
       });
