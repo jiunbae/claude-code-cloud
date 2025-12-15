@@ -23,17 +23,29 @@ export function Sidebar() {
   const { sessions, setSessions, updateSession } = useSessionStore();
   const { getSessions, startSession, stopSession } = useSession();
 
-  // Fetch sessions on mount and poll for updates
+  // Fetch sessions on mount and when page becomes visible
+  // TODO: Replace with WebSocket push for real-time session status updates
+  // Server should broadcast 'session:status_update' events when session state changes
   useEffect(() => {
     const fetchSessions = async () => {
       const data = await getSessions();
       setSessions(data);
     };
+
+    // Initial fetch
     fetchSessions();
 
-    // Poll every 5 seconds for updates
-    const interval = setInterval(fetchSessions, 5000);
-    return () => clearInterval(interval);
+    // Refresh when page becomes visible (user returns to tab)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchSessions();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [getSessions, setSessions]);
 
   // Filter sessions by search query
