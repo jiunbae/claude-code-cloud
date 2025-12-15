@@ -106,6 +106,9 @@ if [ "$(id -u)" = "0" ]; then\n\
   chown -R "$PUID:$PGID" /home/nodejs 2>/dev/null || true\n\
   chown -R "$PUID:$PGID" /app/data 2>/dev/null || true\n\
   chown -R "$PUID:$PGID" "${WORKSPACE_ROOT:-/workspace}/workspaces" 2>/dev/null || true\n\
+  # Ensure Claude CLI config directory is writable (volume may be mounted root-owned)\n\
+  mkdir -p /home/nodejs/.claude /home/nodejs/.anthropic 2>/dev/null || true\n\
+  chown -R "$PUID:$PGID" /home/nodejs/.claude /home/nodejs/.anthropic 2>/dev/null || true\n\
   USER_NAME="$(getent passwd "$PUID" | cut -d: -f1 2>/dev/null || echo hostuser)"\n\
   exec gosu "$PUID:$PGID" env HOME=/home/nodejs USER="$USER_NAME" LOGNAME="$USER_NAME" "$@"\n\
 else\n\

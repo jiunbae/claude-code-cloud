@@ -53,6 +53,9 @@ docker compose --profile dev up
 
 # Rebuild image after updates (ensures Claude CLI is baked in)
 docker compose build --pull
+
+# If you see EACCES for /home/nodejs/.claude in the container, set PUID/PGID to match the host user
+PUID=$(id -u) PGID=$(id -g) docker compose up -d
 ```
 
 ## Project Structure
