@@ -96,8 +96,6 @@ export function CommandPalette() {
     navigation: 'Navigation',
   };
 
-  let flatIndex = 0;
-
   return (
     <>
       {/* Backdrop */}
@@ -150,8 +148,7 @@ export function CommandPalette() {
                       {categoryLabels[category]}
                     </div>
                     {items.map((item) => {
-                      const itemIndex = flatIndex++;
-                      const isSelected = itemIndex === selectedIndex;
+                      const isSelected = item.id === filteredCommands[selectedIndex]?.id;
                       return (
                         <button
                           key={item.id}

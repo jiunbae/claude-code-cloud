@@ -71,7 +71,8 @@ function Dashboard() {
       // Clear the action param from URL
       const newParams = new URLSearchParams(searchParams.toString());
       newParams.delete('action');
-      router.replace(`/?${newParams.toString()}`);
+      const newSearch = newParams.toString();
+      router.replace(newSearch ? `/?${newSearch}` : '/');
     }
   }, [searchParams, router]);
 

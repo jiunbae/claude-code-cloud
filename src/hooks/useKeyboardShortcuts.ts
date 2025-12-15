@@ -57,29 +57,38 @@ export function useKeyboardShortcuts() {
         return;
       }
 
+      // Helper function for session navigation
+      const navigateSession = (direction: 'prev' | 'next') => {
+        const currentSessionMatch = pathname.match(/\/session\/(.+)/);
+        if (!currentSessionMatch || sessions.length === 0) {
+          return;
+        }
+
+        const currentId = currentSessionMatch[1];
+        const currentIndex = sessions.findIndex((s) => s.id === currentId);
+        if (currentIndex === -1) {
+          return;
+        }
+
+        const nextIndex =
+          direction === 'prev'
+            ? (currentIndex - 1 + sessions.length) % sessions.length
+            : (currentIndex + 1) % sessions.length;
+
+        router.push(`/session/${sessions[nextIndex].id}`);
+      };
+
       // Cmd/Ctrl + [: Previous session
       if (modKey && e.key === '[') {
         e.preventDefault();
-        const currentSessionMatch = pathname.match(/\/session\/(.+)/);
-        if (currentSessionMatch && sessions.length > 0) {
-          const currentId = currentSessionMatch[1];
-          const currentIndex = sessions.findIndex((s) => s.id === currentId);
-          const prevIndex = currentIndex > 0 ? currentIndex - 1 : sessions.length - 1;
-          router.push(`/session/${sessions[prevIndex].id}`);
-        }
+        navigateSession('prev');
         return;
       }
 
       // Cmd/Ctrl + ]: Next session
       if (modKey && e.key === ']') {
         e.preventDefault();
-        const currentSessionMatch = pathname.match(/\/session\/(.+)/);
-        if (currentSessionMatch && sessions.length > 0) {
-          const currentId = currentSessionMatch[1];
-          const currentIndex = sessions.findIndex((s) => s.id === currentId);
-          const nextIndex = currentIndex < sessions.length - 1 ? currentIndex + 1 : 0;
-          router.push(`/session/${sessions[nextIndex].id}`);
-        }
+        navigateSession('next');
         return;
       }
     };
