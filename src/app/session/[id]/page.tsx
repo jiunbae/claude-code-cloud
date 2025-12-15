@@ -32,7 +32,7 @@ const FileExplorer = dynamic(
   }
 );
 
-type ViewTab = 'claude' | 'terminal' | 'files';
+type ViewTab = 'claude' | 'codex' | 'terminal' | 'files';
 
 function SessionView() {
   const params = useParams();
@@ -49,6 +49,9 @@ function SessionView() {
   const [shellStarting, setShellStarting] = useState(false);
   const [shellReady, setShellReady] = useState(false);
   const [shellError, setShellError] = useState<string | null>(null);
+  const [codexStarting, setCodexStarting] = useState(false);
+  const [codexReady, setCodexReady] = useState(false);
+  const [codexError, setCodexError] = useState<string | null>(null);
 
   // Fetch session on mount
   useEffect(() => {
@@ -119,6 +122,31 @@ function SessionView() {
       setShellStarting(false);
     }
   }, [sessionId, shellReady, shellStarting]);
+
+  const ensureCodexStarted = useCallback(async () => {
+    if (codexReady || codexStarting) return;
+
+    setCodexStarting(true);
+    setCodexError(null);
+
+    try {
+      const response = await fetch(`/api/sessions/${sessionId}/codex/start`, {
+        method: 'POST',
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to start Codex');
+      }
+
+      setCodexReady(true);
+    } catch (err) {
+      setCodexError((err as Error).message);
+      setCodexReady(false);
+    } finally {
+      setCodexStarting(false);
+    }
+  }, [sessionId, codexReady, codexStarting]);
 
   // Start shell in the background once the session is available
   useEffect(() => {
@@ -271,6 +299,29 @@ function SessionView() {
           </button>
           <button
             onClick={() => {
+              setActiveTab('codex');
+              ensureCodexStarted();
+            }}
+            className={`flex-1 sm:flex-none px-4 py-2.5 text-sm font-medium transition-all ${
+              activeTab === 'codex'
+                ? 'text-white border-b-2 border-green-500 bg-green-500/10'
+                : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/30'
+            }`}
+          >
+            <span className="flex items-center justify-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
+                />
+              </svg>
+              <span>Codex</span>
+            </span>
+          </button>
+          <button
+            onClick={() => {
               setActiveTab('terminal');
               ensureShellStarted();
             }}
@@ -346,6 +397,45 @@ function SessionView() {
                   className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium disabled:opacity-50"
                 >
                   Start Claude
+                </button>
+              </div>
+            </div>
+          )
+        ) : activeTab === 'codex' ? (
+          codexReady ? (
+            <Terminal sessionId={sessionId} terminal="codex" onStatusChange={setTerminalStatus} />
+          ) : codexStarting ? (
+            <div className="flex-1 bg-gray-900 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+            </div>
+          ) : (
+            <div className="flex-1 bg-[#1a1b26] flex items-center justify-center">
+              <div className="text-center max-w-md px-4">
+                <div className="w-16 h-16 mx-auto mb-4 bg-gray-800 rounded-full flex items-center justify-center">
+                  <svg
+                    className="w-8 h-8 text-gray-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-medium text-gray-300 mb-2">Codex not started</h3>
+                <p className="text-gray-500 mb-4">
+                  {codexError ? codexError : 'Start Codex to use OpenAI Codex CLI.'}
+                </p>
+                <button
+                  onClick={ensureCodexStarted}
+                  disabled={codexStarting}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium disabled:opacity-50"
+                >
+                  Start Codex
                 </button>
               </div>
             </div>

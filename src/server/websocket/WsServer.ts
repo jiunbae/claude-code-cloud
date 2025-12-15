@@ -2,6 +2,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { IncomingMessage } from 'http';
 import { parse as parseUrl } from 'url';
 import { ptyManager } from '../pty/PtyManager';
+import { VALID_TERMINAL_TYPES } from '@/types';
 import type { ClientMessage, ServerMessage, TerminalKind, WsConnectionInfo } from '@/types';
 
 interface ExtendedWebSocket extends WebSocket {
@@ -46,7 +47,7 @@ export class WsServer {
         return;
       }
 
-      if (terminal !== 'claude' && terminal !== 'shell') {
+      if (!VALID_TERMINAL_TYPES.includes(terminal)) {
         this.sendMessage(ws, {
           type: 'error',
           code: 'INVALID_TERMINAL',
