@@ -39,6 +39,12 @@ FROM base AS claude-cli
 # Install Claude Code CLI globally (provides `claude` binary used by PTY server)
 RUN npm install -g @anthropic-ai/claude-code && claude --version
 
+# ===== Codex CLI Stage =====
+FROM base AS codex-cli
+
+# Install OpenAI Codex CLI globally (provides `codex` binary used by PTY server)
+RUN npm install -g @openai/codex && codex --version
+
 # ===== Runtime Stage =====
 FROM node:20-bookworm-slim AS runner
 
@@ -58,9 +64,12 @@ RUN apt-get update && apt-get install -y \
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Install Claude Code CLI from build stage
-COPY --from=claude-cli /usr/local/lib/node_modules /usr/local/lib/node_modules
+COPY --from=claude-cli /usr/local/lib/node_modules/@anthropic-ai /usr/local/lib/node_modules/@anthropic-ai
 COPY --from=claude-cli /usr/local/bin/claude /usr/local/bin/claude
-COPY --from=claude-cli /usr/local/share /usr/local/share
+
+# Install Codex CLI from build stage (copy module and recreate symlink)
+COPY --from=codex-cli /usr/local/lib/node_modules/@openai /usr/local/lib/node_modules/@openai
+RUN ln -sf ../lib/node_modules/@openai/codex/bin/codex.js /usr/local/bin/codex
 
 # Create non-root user (node user already exists with UID/GID 1000 in the base image)
 # Rename and reconfigure the existing node user
@@ -106,9 +115,9 @@ if [ "$(id -u)" = "0" ]; then\n\
   chown -R "$PUID:$PGID" /home/nodejs 2>/dev/null || true\n\
   chown -R "$PUID:$PGID" /app/data 2>/dev/null || true\n\
   chown -R "$PUID:$PGID" "${WORKSPACE_ROOT:-/workspace}/workspaces" 2>/dev/null || true\n\
-  # Ensure Claude CLI config directory is writable (volume may be mounted root-owned)\n\
-  mkdir -p /home/nodejs/.claude /home/nodejs/.anthropic 2>/dev/null || true\n\
-  chown -R "$PUID:$PGID" /home/nodejs/.claude /home/nodejs/.anthropic 2>/dev/null || true\n\
+  # Ensure CLI config directories are writable (volume may be mounted root-owned)\n\
+  mkdir -p /home/nodejs/.claude /home/nodejs/.anthropic /home/nodejs/.openai 2>/dev/null || true\n\
+  chown -R "$PUID:$PGID" /home/nodejs/.claude /home/nodejs/.anthropic /home/nodejs/.openai 2>/dev/null || true\n\
   USER_NAME="$(getent passwd "$PUID" | cut -d: -f1 2>/dev/null || echo hostuser)"\n\
   exec gosu "$PUID:$PGID" env HOME=/home/nodejs USER="$USER_NAME" LOGNAME="$USER_NAME" "$@"\n\
 else\n\
