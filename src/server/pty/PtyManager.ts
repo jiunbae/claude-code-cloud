@@ -312,6 +312,9 @@ export class PtyManager extends EventEmitter {
     const session = this.sessions.get(key);
     if (!session) return;
 
+    // Prevent re-entry if already stopping to avoid duplicate timers and listeners
+    if (session.status === 'stopping') return;
+
     session.status = 'stopping';
 
     return new Promise<void>((resolve) => {
