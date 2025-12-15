@@ -26,6 +26,7 @@ interface PtyManagerEvents {
 
 const MAX_OUTPUT_BUFFER_SIZE = 5000; // lines
 const FORCE_KILL_TIMEOUT_MS = 5000; // ms to wait before force kill after graceful shutdown
+const SHUTDOWN_GRACE_PERIOD_MS = 2000; // extra time to wait for exit event after kill signal
 
 export class PtyManager extends EventEmitter {
   // Map key is `${sessionId}:${terminal}`
@@ -315,7 +316,9 @@ export class PtyManager extends EventEmitter {
 
     return new Promise<void>((resolve) => {
       // Overall timeout to prevent hanging if exit event never fires (e.g., zombie process)
-      const shutdownTimeoutMs = force ? 2000 : FORCE_KILL_TIMEOUT_MS + 2000;
+      const shutdownTimeoutMs = force
+        ? SHUTDOWN_GRACE_PERIOD_MS
+        : FORCE_KILL_TIMEOUT_MS + SHUTDOWN_GRACE_PERIOD_MS;
 
       const overallTimeout = setTimeout(() => {
         console.error(
