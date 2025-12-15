@@ -320,7 +320,9 @@ export class PtyManager extends EventEmitter {
       // Force kill after timeout
       const key = this.getKey(sessionId, terminal);
       setTimeout(() => {
-        if (this.sessions.has(key)) {
+        // Check if the same session instance is still in the map
+        // to avoid killing a new session started with the same ID
+        if (this.sessions.get(key) === session) {
           session.pty.kill('SIGKILL');
         }
       }, 5000);
