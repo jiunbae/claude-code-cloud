@@ -125,7 +125,7 @@ function SessionView() {
     if (!session?.workspace) return;
     if (session.workspace.status !== 'ready') return;
     ensureShellStarted();
-  }, [session?.workspace, ensureShellStarted]);
+  }, [session?.workspace?.status, ensureShellStarted]);
 
   if (loading && !session) {
     return (
