@@ -25,6 +25,7 @@ interface PtyManagerEvents {
 }
 
 const MAX_OUTPUT_BUFFER_SIZE = 5000; // lines
+const FORCE_KILL_TIMEOUT_MS = 5000; // ms to wait before force kill after graceful shutdown
 
 export class PtyManager extends EventEmitter {
   // Map key is `${sessionId}:${terminal}`
@@ -325,7 +326,7 @@ export class PtyManager extends EventEmitter {
         if (this.sessions.get(key) === session) {
           session.pty.kill('SIGKILL');
         }
-      }, 5000);
+      }, FORCE_KILL_TIMEOUT_MS);
     }
   }
 
