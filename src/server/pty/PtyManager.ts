@@ -31,6 +31,8 @@ const SHUTDOWN_GRACE_PERIOD_MS = 2000; // extra time to wait for exit event afte
 export class PtyManager extends EventEmitter {
   // Map key is `${sessionId}:${terminal}`
   private sessions: Map<string, PtySession> = new Map();
+  // Track in-progress stop operations to return same Promise for concurrent calls
+  private stoppingPromises: Map<string, Promise<void>> = new Map();
 
   constructor() {
     super();
@@ -309,15 +311,24 @@ export class PtyManager extends EventEmitter {
     force = false
   ): Promise<void> {
     const key = this.getKey(sessionId, terminal);
+
+    // Return existing promise if stop is already in progress
+    const existingPromise = this.stoppingPromises.get(key);
+    if (existingPromise) {
+      return existingPromise;
+    }
+
     const session = this.sessions.get(key);
     if (!session) return;
 
-    // Prevent re-entry if already stopping to avoid duplicate timers and listeners
-    if (session.status === 'stopping') return;
-
     session.status = 'stopping';
 
-    return new Promise<void>((resolve) => {
+    const stoppingPromise = new Promise<void>((resolve) => {
+      const cleanupAndResolve = () => {
+        this.stoppingPromises.delete(key);
+        resolve();
+      };
+
       // Overall timeout to prevent hanging if exit event never fires (e.g., zombie process)
       const shutdownTimeoutMs = force
         ? SHUTDOWN_GRACE_PERIOD_MS
@@ -328,7 +339,7 @@ export class PtyManager extends EventEmitter {
           `[PTY] Session ${sessionId}:${terminal} failed to stop within ${shutdownTimeoutMs}ms. It might be orphaned.`
         );
         this.off('exit', onExit);
-        resolve(); // Resolve to prevent blocking shutdown
+        cleanupAndResolve();
       }, shutdownTimeoutMs);
 
       let forceKillTimeout: NodeJS.Timeout | null = null;
@@ -341,7 +352,7 @@ export class PtyManager extends EventEmitter {
           }
           clearTimeout(overallTimeout);
           this.off('exit', onExit);
-          resolve();
+          cleanupAndResolve();
         }
       };
       this.on('exit', onExit);
@@ -362,6 +373,9 @@ export class PtyManager extends EventEmitter {
         }, FORCE_KILL_TIMEOUT_MS);
       }
     });
+
+    this.stoppingPromises.set(key, stoppingPromise);
+    return stoppingPromise;
   }
 
   getScrollback(sessionId: string, terminal: TerminalKind): string[] {
