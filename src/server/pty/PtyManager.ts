@@ -307,27 +307,38 @@ export class PtyManager extends EventEmitter {
     terminal: TerminalKind = 'claude',
     force = false
   ): Promise<void> {
-    const session = this.sessions.get(this.getKey(sessionId, terminal));
+    const key = this.getKey(sessionId, terminal);
+    const session = this.sessions.get(key);
     if (!session) return;
 
     session.status = 'stopping';
 
-    if (force) {
-      session.pty.kill('SIGKILL');
-    } else {
-      // Graceful shutdown
-      session.pty.kill('SIGTERM');
-
-      // Force kill after timeout
-      const key = this.getKey(sessionId, terminal);
-      setTimeout(() => {
-        // Check if the same session instance is still in the map
-        // to avoid killing a new session started with the same ID
-        if (this.sessions.get(key) === session) {
-          session.pty.kill('SIGKILL');
+    return new Promise<void>((resolve) => {
+      // Listen for exit event to know when process has actually terminated
+      const onExit = (exitSessionId: string, exitTerminal: TerminalKind) => {
+        if (exitSessionId === sessionId && exitTerminal === terminal) {
+          this.off('exit', onExit);
+          resolve();
         }
-      }, FORCE_KILL_TIMEOUT_MS);
-    }
+      };
+      this.on('exit', onExit);
+
+      if (force) {
+        session.pty.kill('SIGKILL');
+      } else {
+        // Graceful shutdown
+        session.pty.kill('SIGTERM');
+
+        // Force kill after timeout if still running
+        setTimeout(() => {
+          // Check if the same session instance is still in the map
+          // to avoid killing a new session started with the same ID
+          if (this.sessions.get(key) === session) {
+            session.pty.kill('SIGKILL');
+          }
+        }, FORCE_KILL_TIMEOUT_MS);
+      }
+    });
   }
 
   getScrollback(sessionId: string, terminal: TerminalKind): string[] {
