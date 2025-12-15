@@ -51,6 +51,7 @@
     "eslint-config-next": "16.1.0-canary.20",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
+    "monaco-editor": "^0.55.1",
     "prettier": "^3.7.4",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
