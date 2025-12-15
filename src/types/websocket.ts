@@ -1,5 +1,7 @@
 import type { SessionStatus } from './session';
 
+export type TerminalKind = 'claude' | 'shell';
+
 // Client to Server messages
 export type ClientMessage =
   | { type: 'terminal:input'; data: string }
@@ -21,5 +23,6 @@ export type ServerMessage =
 
 export interface WsConnectionInfo {
   sessionId: string;
+  terminal: TerminalKind;
   connectedAt: Date;
 }

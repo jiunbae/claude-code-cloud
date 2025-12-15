@@ -4,11 +4,12 @@ import os from 'os';
 import { spawnSync } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
-import type { SessionConfig, SessionStatus } from '@/types';
+import type { SessionConfig, SessionStatus, TerminalKind } from '@/types';
 
 interface PtySession {
   pty: IPty;
   sessionId: string;
+  terminal: TerminalKind;
   workDir: string;
   status: SessionStatus;
   startedAt: Date;
@@ -17,19 +18,24 @@ interface PtySession {
 }
 
 interface PtyManagerEvents {
-  output: (sessionId: string, data: string) => void;
-  exit: (sessionId: string, exitCode: number, signal?: number) => void;
-  started: (sessionId: string, pid: number) => void;
-  error: (sessionId: string, error: Error) => void;
+  output: (sessionId: string, terminal: TerminalKind, data: string) => void;
+  exit: (sessionId: string, terminal: TerminalKind, exitCode: number, signal?: number) => void;
+  started: (sessionId: string, terminal: TerminalKind, pid: number) => void;
+  error: (sessionId: string, terminal: TerminalKind, error: Error) => void;
 }
 
 const MAX_OUTPUT_BUFFER_SIZE = 5000; // lines
 
 export class PtyManager extends EventEmitter {
+  // Map key is `${sessionId}:${terminal}`
   private sessions: Map<string, PtySession> = new Map();
 
   constructor() {
     super();
+  }
+
+  private getKey(sessionId: string, terminal: TerminalKind): string {
+    return `${sessionId}:${terminal}`;
   }
 
   private resolveClaudeBinary(): string | null {
@@ -84,27 +90,44 @@ export class PtyManager extends EventEmitter {
     return fallback;
   }
 
+  private resolveShellBinary(): string {
+    const candidates = [process.env.SHELL, 'bash', 'sh'].filter(Boolean) as string[];
+
+    for (const candidate of candidates) {
+      // If SHELL is an absolute path, verify executability. Otherwise resolve via PATH.
+      const cmd = candidate.includes('/')
+        ? `test -x "${candidate}" && echo "${candidate}"`
+        : `command -v ${candidate}`;
+
+      const result = spawnSync('sh', ['-lc', cmd], { encoding: 'utf8' });
+      if (result.status === 0) {
+        const resolved = result.stdout.trim().split('\n')[0]?.trim();
+        if (resolved) return resolved;
+      }
+    }
+
+    return 'sh';
+  }
+
   async startSession(
     sessionId: string,
     workDir: string,
-    config: SessionConfig = {}
+    config: SessionConfig = {},
+    terminal: TerminalKind = 'claude'
   ): Promise<{ pid: number }> {
+    const key = this.getKey(sessionId, terminal);
+
     // Check if session already exists
-    if (this.sessions.has(sessionId)) {
-      throw new Error(`Session ${sessionId} already running`);
+    if (this.sessions.has(key)) {
+      throw new Error(`Session ${sessionId} (${terminal}) already running`);
     }
 
     const cols = config.cols ?? 120;
     const rows = config.rows ?? 30;
 
     try {
-      const claudeBinary = this.resolveClaudeBinary();
-      if (!claudeBinary) {
-        throw new Error('Claude CLI not found in PATH (expected `claude`). Install it in the container image.');
-      }
-
       const homeDir = process.env.HOME || os.homedir() || '/home/nodejs';
-      console.log(`[PTY] Starting session ${sessionId} (cwd=${workDir})`);
+      console.log(`[PTY] Starting session ${sessionId} (${terminal}) (cwd=${workDir})`);
 
       const env: Record<string, string> = {
         ...Object.entries(process.env).reduce<Record<string, string>>((acc, [key, value]) => {
@@ -120,20 +143,28 @@ export class PtyManager extends EventEmitter {
         COLORTERM: 'truecolor',
       };
 
-      // If ANTHROPIC_API_KEY is not provided, try ~/.anthropic/api_key
-      if (!env.ANTHROPIC_API_KEY) {
-        const apiKey = await this.resolveAnthropicApiKey(homeDir);
-        if (apiKey) {
-          env.ANTHROPIC_API_KEY = apiKey;
-        }
+      const command = terminal === 'claude' ? this.resolveClaudeBinary() : this.resolveShellBinary();
+      if (terminal === 'claude' && !command) {
+        throw new Error('Claude CLI not found in PATH (expected `claude`). Install it in the container image.');
       }
 
-      // Ensure Claude CLI config directory is writable; fall back if necessary
-      const claudeConfigDir = await this.resolveClaudeConfigDir(homeDir);
-      env.CLAUDE_CONFIG_DIR = claudeConfigDir;
+      // Claude-specific env/config
+      if (terminal === 'claude') {
+        // If ANTHROPIC_API_KEY is not provided, try ~/.anthropic/api_key
+        if (!env.ANTHROPIC_API_KEY) {
+          const apiKey = await this.resolveAnthropicApiKey(homeDir);
+          if (apiKey) {
+            env.ANTHROPIC_API_KEY = apiKey;
+          }
+        }
 
-      // Spawn claude CLI process
-      const pty = spawn(claudeBinary, [], {
+        // Ensure Claude CLI config directory is writable; fall back if necessary
+        const claudeConfigDir = await this.resolveClaudeConfigDir(homeDir);
+        env.CLAUDE_CONFIG_DIR = claudeConfigDir;
+      }
+
+      // Spawn process
+      const pty = spawn(command as string, [], {
         name: 'xterm-256color',
         cols,
         rows,
@@ -144,6 +175,7 @@ export class PtyManager extends EventEmitter {
       const session: PtySession = {
         pty,
         sessionId,
+        terminal,
         workDir,
         status: 'running',
         startedAt: new Date(),
@@ -151,7 +183,7 @@ export class PtyManager extends EventEmitter {
         outputBuffer: [],
       };
 
-      this.sessions.set(sessionId, session);
+      this.sessions.set(key, session);
 
       // Handle output
       pty.onData((data: string) => {
@@ -166,59 +198,69 @@ export class PtyManager extends EventEmitter {
           session.outputBuffer = session.outputBuffer.slice(-MAX_OUTPUT_BUFFER_SIZE);
         }
 
-        this.emit('output', sessionId, data);
+        this.emit('output', sessionId, terminal, data);
       });
 
       // Handle exit
       pty.onExit(({ exitCode, signal }) => {
         session.status = 'idle';
-        console.log(`[PTY] Session ${sessionId} exited (code=${exitCode}, signal=${signal ?? 'none'})`);
+        console.log(
+          `[PTY] Session ${sessionId} (${terminal}) exited (code=${exitCode}, signal=${signal ?? 'none'})`
+        );
         if (exitCode !== 0) {
           const tailLines = session.outputBuffer.slice(-50).join('\n').trim();
           if (tailLines) {
             const tail = tailLines.length > 4000 ? `${tailLines.slice(-4000)}\n…(truncated)` : tailLines;
-            console.log(`[PTY] Session ${sessionId} output (tail):\n${tail}`);
+            console.log(`[PTY] Session ${sessionId} (${terminal}) output (tail):\n${tail}`);
           }
         }
-        this.emit('exit', sessionId, exitCode, signal);
-        this.sessions.delete(sessionId);
+        this.emit('exit', sessionId, terminal, exitCode, signal);
+        this.sessions.delete(key);
       });
 
-      this.emit('started', sessionId, pty.pid);
+      this.emit('started', sessionId, terminal, pty.pid);
 
       return { pid: pty.pid };
     } catch (error) {
-      console.error(`[PTY] Failed to start session ${sessionId}:`, error);
-      this.emit('error', sessionId, error as Error);
+      console.error(`[PTY] Failed to start session ${sessionId} (${terminal}):`, error);
+      this.emit('error', sessionId, terminal, error as Error);
       throw error;
     }
   }
 
-  write(sessionId: string, data: string): void {
-    const session = this.sessions.get(sessionId);
+  write(sessionId: string, terminal: TerminalKind, data: string): void {
+    const session = this.sessions.get(this.getKey(sessionId, terminal));
     if (!session) {
-      throw new Error(`Session ${sessionId} not found`);
+      throw new Error(`Session ${sessionId} (${terminal}) not found`);
     }
     session.lastActivity = new Date();
     session.pty.write(data);
   }
 
-  resize(sessionId: string, cols: number, rows: number): void {
-    const session = this.sessions.get(sessionId);
+  resize(sessionId: string, terminal: TerminalKind, cols: number, rows: number): void {
+    const session = this.sessions.get(this.getKey(sessionId, terminal));
     if (session) {
       session.pty.resize(cols, rows);
     }
   }
 
-  sendSignal(sessionId: string, signal: 'SIGINT' | 'SIGTERM' | 'SIGKILL'): void {
-    const session = this.sessions.get(sessionId);
+  sendSignal(
+    sessionId: string,
+    terminal: TerminalKind,
+    signal: 'SIGINT' | 'SIGTERM' | 'SIGKILL'
+  ): void {
+    const session = this.sessions.get(this.getKey(sessionId, terminal));
     if (session) {
       session.pty.kill(signal);
     }
   }
 
-  async stopSession(sessionId: string, force = false): Promise<void> {
-    const session = this.sessions.get(sessionId);
+  async stopSession(
+    sessionId: string,
+    terminal: TerminalKind = 'claude',
+    force = false
+  ): Promise<void> {
+    const session = this.sessions.get(this.getKey(sessionId, terminal));
     if (!session) return;
 
     session.status = 'stopping';
@@ -238,23 +280,23 @@ export class PtyManager extends EventEmitter {
     }
   }
 
-  getScrollback(sessionId: string): string[] {
-    const session = this.sessions.get(sessionId);
+  getScrollback(sessionId: string, terminal: TerminalKind): string[] {
+    const session = this.sessions.get(this.getKey(sessionId, terminal));
     return session?.outputBuffer ?? [];
   }
 
-  getStatus(sessionId: string): SessionStatus {
-    const session = this.sessions.get(sessionId);
+  getStatus(sessionId: string, terminal: TerminalKind): SessionStatus {
+    const session = this.sessions.get(this.getKey(sessionId, terminal));
     return session?.status ?? 'idle';
   }
 
-  getPid(sessionId: string): number | undefined {
-    const session = this.sessions.get(sessionId);
+  getPid(sessionId: string, terminal: TerminalKind): number | undefined {
+    const session = this.sessions.get(this.getKey(sessionId, terminal));
     return session?.pty.pid;
   }
 
-  isRunning(sessionId: string): boolean {
-    return this.sessions.has(sessionId);
+  isRunning(sessionId: string, terminal: TerminalKind = 'claude'): boolean {
+    return this.sessions.has(this.getKey(sessionId, terminal));
   }
 
   getRunningCount(): number {
@@ -267,9 +309,11 @@ export class PtyManager extends EventEmitter {
 
   // Clean up all sessions
   async shutdown(): Promise<void> {
-    const promises = Array.from(this.sessions.keys()).map((sessionId) =>
-      this.stopSession(sessionId, true)
-    );
+    const promises = Array.from(this.sessions.keys()).map(async (key) => {
+      const session = this.sessions.get(key);
+      if (!session) return;
+      await this.stopSession(session.sessionId, session.terminal, true);
+    });
     await Promise.all(promises);
   }
 }

@@ -89,9 +89,105 @@ function createHttpApi() {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
         running: ptyManager.isRunning(sessionId),
-        status: ptyManager.getStatus(sessionId),
-        pid: ptyManager.getPid(sessionId),
+        status: ptyManager.getStatus(sessionId, 'claude'),
+        pid: ptyManager.getPid(sessionId, 'claude'),
       }));
+      return;
+    }
+
+    // POST /sessions/:id/shell/start
+    if (
+      req.method === 'POST' &&
+      pathParts[0] === 'sessions' &&
+      pathParts[2] === 'shell' &&
+      pathParts[3] === 'start'
+    ) {
+      const sessionId = pathParts[1];
+
+      try {
+        // Read request body
+        let body = '';
+        for await (const chunk of req) {
+          body += chunk;
+        }
+        const data = body ? JSON.parse(body) : {};
+        const { projectPath, config } = data;
+
+        if (!projectPath) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'projectPath required' }));
+          return;
+        }
+
+        if (ptyManager.isRunning(sessionId, 'shell')) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true, pid: ptyManager.getPid(sessionId, 'shell') }));
+          return;
+        }
+
+        const { pid } = await ptyManager.startSession(sessionId, projectPath, config || {}, 'shell');
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, pid }));
+      } catch (error) {
+        console.error('Failed to start shell:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: (error as Error).message }));
+      }
+      return;
+    }
+
+    // POST /sessions/:id/shell/stop
+    if (
+      req.method === 'POST' &&
+      pathParts[0] === 'sessions' &&
+      pathParts[2] === 'shell' &&
+      pathParts[3] === 'stop'
+    ) {
+      const sessionId = pathParts[1];
+
+      try {
+        if (!ptyManager.isRunning(sessionId, 'shell')) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Shell not running' }));
+          return;
+        }
+
+        let body = '';
+        for await (const chunk of req) {
+          body += chunk;
+        }
+        const data = body ? JSON.parse(body) : {};
+
+        await ptyManager.stopSession(sessionId, 'shell', data.force === true);
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true }));
+      } catch (error) {
+        console.error('Failed to stop shell:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: (error as Error).message }));
+      }
+      return;
+    }
+
+    // GET /sessions/:id/shell/status
+    if (
+      req.method === 'GET' &&
+      pathParts[0] === 'sessions' &&
+      pathParts[2] === 'shell' &&
+      pathParts[3] === 'status'
+    ) {
+      const sessionId = pathParts[1];
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          running: ptyManager.isRunning(sessionId, 'shell'),
+          status: ptyManager.getStatus(sessionId, 'shell'),
+          pid: ptyManager.getPid(sessionId, 'shell'),
+        })
+      );
       return;
     }
 

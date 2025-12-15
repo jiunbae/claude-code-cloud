@@ -3,12 +3,14 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import type { Terminal as XTerminal } from '@xterm/xterm';
 import type { FitAddon } from '@xterm/addon-fit';
+import type { TerminalKind } from '@/types';
 
 interface TerminalProps {
   sessionId: string;
   wsUrl?: string;
   onStatusChange?: (status: 'connecting' | 'connected' | 'disconnected' | 'error') => void;
   readOnly?: boolean;
+  terminal?: TerminalKind;
 }
 
 // Generate default WebSocket URL based on current page location and env vars
@@ -36,12 +38,16 @@ export default function Terminal({
   wsUrl,
   onStatusChange,
   readOnly = false,
+  terminal = 'claude',
 }: TerminalProps) {
   const effectiveWsUrl = wsUrl || getDefaultWsUrl();
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const reconnectEnabledRef = useRef(true);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const resizeRafRef = useRef<number | null>(null);
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>(
     'disconnected'
   );
@@ -54,9 +60,107 @@ export default function Terminal({
     [onStatusChange]
   );
 
+  const fitAndNotifyResize = useCallback(() => {
+    if (!fitAddonRef.current || !xtermRef.current) return;
+
+    fitAddonRef.current.fit();
+
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(
+        JSON.stringify({
+          type: 'terminal:resize',
+          cols: xtermRef.current.cols,
+          rows: xtermRef.current.rows,
+        })
+      );
+    }
+  }, []);
+
+  // WebSocket connection
+  const connectWebSocket = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+
+    updateStatus('connecting');
+
+    const ws = new WebSocket(
+      `${effectiveWsUrl}?sessionId=${encodeURIComponent(sessionId)}&terminal=${terminal}`
+    );
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      updateStatus('connected');
+      const label = terminal === 'shell' ? 'Terminal' : 'Claude';
+      xtermRef.current?.writeln(`\x1b[32m● Connected to ${label}\x1b[0m\n`);
+
+      // Send initial resize
+      fitAndNotifyResize();
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+
+        switch (message.type) {
+          case 'terminal:output':
+            xtermRef.current?.write(message.data);
+            break;
+
+          case 'terminal:scrollback':
+            // Write scrollback history
+            if (Array.isArray(message.data)) {
+              message.data.forEach((line: string) => {
+                xtermRef.current?.writeln(line);
+              });
+            }
+            break;
+
+          case 'session:status':
+            if (message.status === 'running') {
+              xtermRef.current?.writeln(
+                `\x1b[32m● ${terminal === 'shell' ? 'Shell' : 'Claude Code'} started\x1b[0m`
+              );
+            } else if (message.status === 'idle') {
+              xtermRef.current?.writeln(
+                `\x1b[33m● ${terminal === 'shell' ? 'Shell' : 'Claude Code'} exited (code: ${message.exitCode ?? 'unknown'})\x1b[0m`
+              );
+            }
+            break;
+
+          case 'session:error':
+            xtermRef.current?.writeln(`\x1b[31m✗ Error: ${message.message}\x1b[0m`);
+            break;
+
+          case 'error':
+            console.error('WebSocket error:', message);
+            break;
+        }
+      } catch (error) {
+        console.error('Failed to parse message:', error);
+      }
+    };
+
+    ws.onclose = () => {
+      updateStatus('disconnected');
+      xtermRef.current?.writeln('\x1b[33m● Disconnected from session\x1b[0m');
+
+      // Reconnect after delay
+      setTimeout(() => {
+        if (reconnectEnabledRef.current && wsRef.current === ws) {
+          connectWebSocket();
+        }
+      }, 3000);
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      updateStatus('error');
+    };
+  }, [sessionId, effectiveWsUrl, terminal, updateStatus, fitAndNotifyResize]);
+
   // Initialize terminal
   useEffect(() => {
     let mounted = true;
+    reconnectEnabledRef.current = true;
 
     const initTerminal = async () => {
       if (!terminalRef.current || xtermRef.current) return;
@@ -106,6 +210,23 @@ export default function Terminal({
       xtermRef.current = terminal;
       fitAddonRef.current = fitAddon;
 
+      // Watch container size changes (tab switches / split panes / etc)
+      const handleContainerResize = () => {
+        if (resizeRafRef.current !== null) {
+          cancelAnimationFrame(resizeRafRef.current);
+        }
+        resizeRafRef.current = requestAnimationFrame(() => {
+          resizeRafRef.current = null;
+          fitAndNotifyResize();
+        });
+      };
+
+      if (typeof ResizeObserver !== 'undefined') {
+        const ro = new ResizeObserver(handleContainerResize);
+        ro.observe(terminalRef.current);
+        resizeObserverRef.current = ro;
+      }
+
       // Handle input (if not read-only)
       if (!readOnly) {
         terminal.onData((data) => {
@@ -115,29 +236,13 @@ export default function Terminal({
         });
       }
 
-      // Handle resize
-      const handleResize = () => {
-        if (fitAddonRef.current && xtermRef.current) {
-          fitAddonRef.current.fit();
-          if (wsRef.current?.readyState === WebSocket.OPEN) {
-            wsRef.current.send(
-              JSON.stringify({
-                type: 'terminal:resize',
-                cols: xtermRef.current.cols,
-                rows: xtermRef.current.rows,
-              })
-            );
-          }
-        }
-      };
-
-      window.addEventListener('resize', handleResize);
+      window.addEventListener('resize', handleContainerResize);
 
       // Connect WebSocket
       connectWebSocket();
 
       return () => {
-        window.removeEventListener('resize', handleResize);
+        window.removeEventListener('resize', handleContainerResize);
       };
     };
 
@@ -145,94 +250,24 @@ export default function Terminal({
 
     return () => {
       mounted = false;
+      reconnectEnabledRef.current = false;
+
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+        resizeObserverRef.current = null;
+      }
+      if (resizeRafRef.current !== null) {
+        cancelAnimationFrame(resizeRafRef.current);
+        resizeRafRef.current = null;
+      }
+
       wsRef.current?.close();
+      wsRef.current = null;
       xtermRef.current?.dispose();
+      xtermRef.current = null;
+      fitAddonRef.current = null;
     };
-  }, [sessionId, readOnly]);
-
-  // WebSocket connection
-  const connectWebSocket = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
-
-    updateStatus('connecting');
-
-    const ws = new WebSocket(`${effectiveWsUrl}?sessionId=${sessionId}`);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      updateStatus('connected');
-      xtermRef.current?.writeln('\x1b[32m● Connected to session\x1b[0m\n');
-
-      // Send initial resize
-      if (xtermRef.current) {
-        ws.send(
-          JSON.stringify({
-            type: 'terminal:resize',
-            cols: xtermRef.current.cols,
-            rows: xtermRef.current.rows,
-          })
-        );
-      }
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
-
-        switch (message.type) {
-          case 'terminal:output':
-            xtermRef.current?.write(message.data);
-            break;
-
-          case 'terminal:scrollback':
-            // Write scrollback history
-            if (Array.isArray(message.data)) {
-              message.data.forEach((line: string) => {
-                xtermRef.current?.writeln(line);
-              });
-            }
-            break;
-
-          case 'session:status':
-            if (message.status === 'running') {
-              xtermRef.current?.writeln('\x1b[32m● Claude Code started\x1b[0m');
-            } else if (message.status === 'idle') {
-              xtermRef.current?.writeln(
-                `\x1b[33m● Claude Code exited (code: ${message.exitCode ?? 'unknown'})\x1b[0m`
-              );
-            }
-            break;
-
-          case 'session:error':
-            xtermRef.current?.writeln(`\x1b[31m✗ Error: ${message.message}\x1b[0m`);
-            break;
-
-          case 'error':
-            console.error('WebSocket error:', message);
-            break;
-        }
-      } catch (error) {
-        console.error('Failed to parse message:', error);
-      }
-    };
-
-    ws.onclose = () => {
-      updateStatus('disconnected');
-      xtermRef.current?.writeln('\x1b[33m● Disconnected from session\x1b[0m');
-
-      // Reconnect after delay
-      setTimeout(() => {
-        if (wsRef.current === ws) {
-          connectWebSocket();
-        }
-      }, 3000);
-    };
-
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      updateStatus('error');
-    };
-  }, [sessionId, effectiveWsUrl, updateStatus]);
+  }, [readOnly, connectWebSocket, fitAndNotifyResize]);
 
   // Send signal (e.g., Ctrl+C)
   const sendSignal = useCallback((signal: 'SIGINT' | 'SIGTERM') => {
@@ -240,6 +275,18 @@ export default function Terminal({
       wsRef.current.send(JSON.stringify({ type: 'terminal:signal', signal }));
     }
   }, []);
+
+  const adjustFontSize = useCallback(
+    (delta: number) => {
+      if (!xtermRef.current) return;
+      const current = xtermRef.current.options.fontSize ?? 14;
+      const next = Math.max(10, Math.min(24, current + delta));
+      xtermRef.current.options.fontSize = next;
+      // Let xterm apply the new font size before fitting.
+      requestAnimationFrame(() => fitAndNotifyResize());
+    },
+    [fitAndNotifyResize]
+  );
 
   return (
     <div className="flex flex-col h-full">
@@ -272,6 +319,22 @@ export default function Terminal({
           </span>
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
+          <button
+            onClick={() => adjustFontSize(-1)}
+            className="p-2 sm:px-3 sm:py-1.5 text-xs text-gray-400 hover:text-white hover:bg-gray-700 active:bg-gray-600 rounded-lg transition-colors"
+            title="Decrease font size"
+            aria-label="Decrease font size"
+          >
+            A-
+          </button>
+          <button
+            onClick={() => adjustFontSize(1)}
+            className="p-2 sm:px-3 sm:py-1.5 text-xs text-gray-400 hover:text-white hover:bg-gray-700 active:bg-gray-600 rounded-lg transition-colors"
+            title="Increase font size"
+            aria-label="Increase font size"
+          >
+            A+
+          </button>
           {!readOnly && (
             <>
               <button
