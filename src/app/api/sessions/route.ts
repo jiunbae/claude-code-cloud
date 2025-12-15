@@ -12,11 +12,25 @@ export async function GET(request: NextRequest) {
   // If not authenticated, return empty (or public sessions in future)
   if (auth) {
     const sessions = sessionStore.getByOwner(auth.userId);
-    return NextResponse.json({ sessions });
+    return NextResponse.json(
+      { sessions },
+      {
+        headers: {
+          'Cache-Control': 'private, max-age=5, stale-while-revalidate=10',
+        },
+      }
+    );
   }
 
   // Return empty for unauthenticated users
-  return NextResponse.json({ sessions: [] });
+  return NextResponse.json(
+    { sessions: [] },
+    {
+      headers: {
+        'Cache-Control': 'public, max-age=60',
+      },
+    }
+  );
 }
 
 // POST /api/sessions - Create a new session

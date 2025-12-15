@@ -4,9 +4,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Header } from '@/components/Layout';
-import { ShareDialog, ParticipantList } from '@/components/Collaboration';
+import { ShareDialog, ParticipantList, Chat, PresenceIndicator } from '@/components/Collaboration';
 import { AuthGuard } from '@/components/Auth';
 import { useSession } from '@/hooks/useSession';
+import { useAuth } from '@/hooks/useAuth';
+import { useCollaboration } from '@/hooks/useCollaboration';
 import type { Session } from '@/types';
 
 // Dynamic import for Terminal (SSR disabled)
@@ -18,6 +20,19 @@ const Terminal = dynamic(() => import('@/components/Terminal/Terminal'), {
     </div>
   ),
 });
+
+// Dynamic import for MultiTabTerminal (SSR disabled)
+const MultiTabTerminal = dynamic(
+  () => import('@/components/Terminal/MultiTabTerminal'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex-1 bg-gray-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+      </div>
+    ),
+  }
+);
 
 // Dynamic import for FileExplorer
 const FileExplorer = dynamic(
@@ -52,6 +67,14 @@ function SessionView() {
   const [codexStarting, setCodexStarting] = useState(false);
   const [codexReady, setCodexReady] = useState(false);
   const [codexError, setCodexError] = useState<string | null>(null);
+
+  // Auth and collaboration
+  const { user } = useAuth();
+  const collaboration = useCollaboration({
+    sessionId,
+    userName: user?.username || 'Anonymous',
+    enabled: !!session,
+  });
 
   // Fetch session on mount
   useEffect(() => {
@@ -219,6 +242,10 @@ function SessionView() {
 
           {/* Actions */}
           <div className="flex items-center gap-2 sm:gap-3">
+            <PresenceIndicator
+              collaborators={collaboration.collaborators}
+              connected={collaboration.connected}
+            />
             <ParticipantList
               sessionId={sessionId}
               onShareClick={() => setIsShareOpen(true)}
@@ -442,7 +469,7 @@ function SessionView() {
           )
         ) : activeTab === 'terminal' ? (
           shellReady ? (
-            <Terminal sessionId={sessionId} terminal="shell" onStatusChange={setTerminalStatus} />
+            <MultiTabTerminal sessionId={sessionId} onStatusChange={setTerminalStatus} />
           ) : shellStarting ? (
             <div className="flex-1 bg-gray-900 flex items-center justify-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
@@ -474,6 +501,15 @@ function SessionView() {
           {error}
         </div>
       )}
+
+      {/* Real-time Chat */}
+      <Chat
+        messages={collaboration.messages}
+        collaborators={collaboration.collaborators}
+        onSendMessage={collaboration.sendMessage}
+        onTyping={collaboration.setTyping}
+        currentUserId={collaboration.userId}
+      />
 
       <ShareDialog
         isOpen={isShareOpen}
