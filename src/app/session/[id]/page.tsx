@@ -7,7 +7,7 @@ import { Header } from '@/components/Layout';
 import { ShareDialog, ParticipantList } from '@/components/Collaboration';
 import { AuthGuard } from '@/components/Auth';
 import { useSession } from '@/hooks/useSession';
-import type { Session, SessionStatus } from '@/types';
+import type { Session } from '@/types';
 
 // Dynamic import for Terminal (SSR disabled)
 const Terminal = dynamic(() => import('@/components/Terminal/Terminal'), {
@@ -32,7 +32,7 @@ const FileExplorer = dynamic(
   }
 );
 
-type ViewTab = 'terminal' | 'files';
+type ViewTab = 'claude' | 'terminal' | 'files';
 
 function SessionView() {
   const params = useParams();
@@ -40,12 +40,15 @@ function SessionView() {
   const sessionId = params.id as string;
 
   const [session, setSession] = useState<Session | null>(null);
-  const [terminalStatus, setTerminalStatus] = useState<
+  const [, setTerminalStatus] = useState<
     'connecting' | 'connected' | 'disconnected' | 'error'
   >('disconnected');
-  const [activeTab, setActiveTab] = useState<ViewTab>('terminal');
+  const [activeTab, setActiveTab] = useState<ViewTab>('claude');
   const [isShareOpen, setIsShareOpen] = useState(false);
   const { loading, error, getSession, startSession, stopSession } = useSession();
+  const [shellStarting, setShellStarting] = useState(false);
+  const [shellReady, setShellReady] = useState(false);
+  const [shellError, setShellError] = useState<string | null>(null);
 
   // Fetch session on mount
   useEffect(() => {
@@ -91,6 +94,38 @@ function SessionView() {
   const isRunning = session?.status === 'running';
   const isStarting = session?.status === 'starting';
   const isStopping = session?.status === 'stopping';
+
+  const ensureShellStarted = useCallback(async () => {
+    if (shellReady || shellStarting) return;
+
+    setShellStarting(true);
+    setShellError(null);
+
+    try {
+      const response = await fetch(`/api/sessions/${sessionId}/shell/start`, {
+        method: 'POST',
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to start shell');
+      }
+
+      setShellReady(true);
+    } catch (err) {
+      setShellError((err as Error).message);
+      setShellReady(false);
+    } finally {
+      setShellStarting(false);
+    }
+  }, [sessionId, shellReady, shellStarting]);
+
+  // Start shell in the background once the session is available
+  useEffect(() => {
+    if (!session?.workspace) return;
+    if (session.workspace.status !== 'ready') return;
+    ensureShellStarted();
+  }, [session?.workspace?.status, ensureShellStarted]);
 
   if (loading && !session) {
     return (
@@ -179,7 +214,7 @@ function SessionView() {
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                       <rect x="6" y="6" width="12" height="12" rx="1" />
                     </svg>
-                    <span className="hidden sm:inline">Stop</span>
+                    <span className="hidden sm:inline">Stop Claude</span>
                   </>
                 )}
               </button>
@@ -202,7 +237,7 @@ function SessionView() {
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                       <path d="M8 5v14l11-7z" />
                     </svg>
-                    <span className="hidden sm:inline">Start</span>
+                    <span className="hidden sm:inline">Start Claude</span>
                   </>
                 )}
               </button>
@@ -215,7 +250,30 @@ function SessionView() {
       <div className="bg-gray-800/50 border-b border-gray-700/50 px-2 sm:px-4">
         <div className="flex">
           <button
-            onClick={() => setActiveTab('terminal')}
+            onClick={() => setActiveTab('claude')}
+            className={`flex-1 sm:flex-none px-4 py-2.5 text-sm font-medium transition-all ${
+              activeTab === 'claude'
+                ? 'text-white border-b-2 border-blue-500 bg-blue-500/10'
+                : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/30'
+            }`}
+          >
+            <span className="flex items-center justify-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+              <span>Claude</span>
+            </span>
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('terminal');
+              ensureShellStarted();
+            }}
             className={`flex-1 sm:flex-none px-4 py-2.5 text-sm font-medium transition-all ${
               activeTab === 'terminal'
                 ? 'text-white border-b-2 border-blue-500 bg-blue-500/10'
@@ -228,7 +286,7 @@ function SessionView() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  d="M3 6h18M3 12h18M3 18h18"
                 />
               </svg>
               <span>Terminal</span>
@@ -258,10 +316,10 @@ function SessionView() {
       </div>
 
       {/* Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {activeTab === 'terminal' ? (
+      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+        {activeTab === 'claude' ? (
           isRunning || isStarting ? (
-            <Terminal sessionId={sessionId} onStatusChange={setTerminalStatus} />
+            <Terminal sessionId={sessionId} terminal="claude" onStatusChange={setTerminalStatus} />
           ) : (
             <div className="flex-1 bg-[#1a1b26] flex items-center justify-center">
               <div className="text-center">
@@ -280,14 +338,38 @@ function SessionView() {
                     />
                   </svg>
                 </div>
-                <h3 className="text-xl font-medium text-gray-300 mb-2">Session not running</h3>
-                <p className="text-gray-500 mb-4">Start the session to use Claude Code</p>
+                <h3 className="text-xl font-medium text-gray-300 mb-2">Claude not running</h3>
+                <p className="text-gray-500 mb-4">Start Claude to use Claude Code</p>
                 <button
                   onClick={handleStart}
                   disabled={isStarting}
                   className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium disabled:opacity-50"
                 >
-                  Start Session
+                  Start Claude
+                </button>
+              </div>
+            </div>
+          )
+        ) : activeTab === 'terminal' ? (
+          shellReady ? (
+            <Terminal sessionId={sessionId} terminal="shell" onStatusChange={setTerminalStatus} />
+          ) : shellStarting ? (
+            <div className="flex-1 bg-gray-900 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+            </div>
+          ) : (
+            <div className="flex-1 bg-[#1a1b26] flex items-center justify-center">
+              <div className="text-center max-w-md px-4">
+                <h3 className="text-xl font-medium text-gray-300 mb-2">Terminal not started</h3>
+                <p className="text-gray-500 mb-4">
+                  {shellError ? shellError : 'Start the shell to use a regular terminal.'}
+                </p>
+                <button
+                  onClick={ensureShellStarted}
+                  disabled={shellStarting}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50"
+                >
+                  Start Terminal
                 </button>
               </div>
             </div>
