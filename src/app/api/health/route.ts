@@ -29,11 +29,12 @@ interface HealthCheck {
 export async function GET() {
   const startTime = performance.now();
 
-  // Check database health
+  // Check database health and get session count
   let dbStatus: HealthCheck['components']['database'] = { status: 'ok' };
+  let totalSessionsCount = 0;
   try {
     const dbStart = performance.now();
-    sessionStore.count(); // Simple query to test DB connection
+    totalSessionsCount = sessionStore.count(); // Simple query to test DB connection
     dbStatus = { status: 'ok', latencyMs: Math.round(performance.now() - dbStart) };
   } catch (error) {
     dbStatus = { status: 'error', error: (error as Error).message };
@@ -66,7 +67,7 @@ export async function GET() {
     uptime: process.uptime(),
     version: process.env.npm_package_version || '1.0.0',
     sessions: {
-      total: dbStatus.status === 'ok' ? sessionStore.count() : 0,
+      total: totalSessionsCount,
       running: ptyManager.getRunningCount(),
     },
     memory,

@@ -50,9 +50,11 @@ function generateId(): string {
 export function useCollaboration({
   sessionId,
   userName,
-  userColor = generateUserColor(),
+  userColor: initialUserColor,
   enabled = true,
 }: UseCollaborationOptions) {
+  // Use useState to generate color only once per component instance
+  const [userColor] = useState(() => initialUserColor || generateUserColor());
   const [state, setState] = useState<CollaborationState>({
     connected: false,
     collaborators: [],
