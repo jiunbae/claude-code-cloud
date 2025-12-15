@@ -1,13 +1,11 @@
 import { createServer, IncomingMessage, ServerResponse } from 'http';
 import { WsServer } from './websocket/WsServer';
 import { ptyManager } from './pty/PtyManager';
+import { VALID_TERMINAL_TYPES } from '@/types';
 import type { TerminalKind } from '@/types';
 
 const wsPort = parseInt(process.env.WS_PORT || '3001', 10);
 const httpPort = parseInt(process.env.PTY_API_PORT || '3003', 10);
-
-// Valid terminal types for routing
-const validTerminalTypes: TerminalKind[] = ['claude', 'shell', 'codex'];
 
 // Helper: Parse JSON body from request
 async function parseJsonBody(req: IncomingMessage): Promise<Record<string, unknown>> {
@@ -150,7 +148,7 @@ function createHttpApi() {
     }
 
     // New routes: /sessions/:id/:terminal/:action
-    if (validTerminalTypes.includes(terminalOrAction as TerminalKind) && action) {
+    if (VALID_TERMINAL_TYPES.includes(terminalOrAction as TerminalKind) && action) {
       const terminal = terminalOrAction as TerminalKind;
 
       switch (action) {

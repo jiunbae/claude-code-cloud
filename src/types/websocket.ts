@@ -2,6 +2,9 @@ import type { SessionStatus } from './session';
 
 export type TerminalKind = 'claude' | 'shell' | 'codex';
 
+// Valid terminal types array for validation
+export const VALID_TERMINAL_TYPES: TerminalKind[] = ['claude', 'shell', 'codex'];
+
 // Client to Server messages
 export type ClientMessage =
   | { type: 'terminal:input'; data: string }
