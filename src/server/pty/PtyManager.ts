@@ -53,6 +53,37 @@ export class PtyManager extends EventEmitter {
     }
   }
 
+  /**
+   * Ensure directory exists and is writable. Returns the path used.
+   * Falls back to /app/data/claude if the primary directory is not writable
+   * (common on NAS /bind mounts that disallow chown).
+   */
+  private async resolveClaudeConfigDir(homeDir: string): Promise<string> {
+    const primary = path.join(homeDir, '.claude');
+    const fallback = '/app/data/claude';
+
+    const isWritable = async (dir: string): Promise<boolean> => {
+      try {
+        await fs.mkdir(dir, { recursive: true });
+        // Test write permissions with a temp file
+        const probe = path.join(dir, '.write-test');
+        await fs.writeFile(probe, 'ok');
+        await fs.unlink(probe);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    if (await isWritable(primary)) {
+      return primary;
+    }
+
+    // Ensure fallback directory exists
+    await fs.mkdir(fallback, { recursive: true });
+    return fallback;
+  }
+
   async startSession(
     sessionId: string,
     workDir: string,
@@ -96,6 +127,10 @@ export class PtyManager extends EventEmitter {
           env.ANTHROPIC_API_KEY = apiKey;
         }
       }
+
+      // Ensure Claude CLI config directory is writable; fall back if necessary
+      const claudeConfigDir = await this.resolveClaudeConfigDir(homeDir);
+      env.CLAUDE_CONFIG_DIR = claudeConfigDir;
 
       // Spawn claude CLI process
       const pty = spawn(claudeBinary, [], {
