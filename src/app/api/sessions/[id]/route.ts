@@ -14,7 +14,9 @@ async function getPtyStatus(sessionId: string): Promise<{ isRunning: boolean; pi
     const response = await fetch(`${PTY_API_URL}/sessions/${sessionId}/status`);
     if (response.ok) {
       const data = await response.json();
-      return { isRunning: data.isRunning, pid: data.pid };
+      // PTY API returns { running, status, pid }
+      const isRunning = Boolean(data.running ?? data.isRunning);
+      return { isRunning, pid: data.pid };
     }
   } catch {
     // PTY API not available
@@ -48,7 +50,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
   // If PTY is not running but DB still says running/starting, surface as idle
   const effectiveStatus =
-    isRunning ? 'running' : (session.status === 'running' || session.status === 'starting') ? 'idle' : session.status;
+    isRunning
+      ? 'running'
+      : session.status === 'running' || session.status === 'starting'
+        ? 'idle'
+        : session.status;
 
   return NextResponse.json({
     session: {
