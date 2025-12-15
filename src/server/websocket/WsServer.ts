@@ -9,6 +9,14 @@ import type { ClientMessage, ServerMessage, TerminalKind, WsConnectionInfo } fro
 // Constants
 const DEFAULT_COLLAB_COLOR = '#7aa2f7';
 
+// Type definitions for collaboration messages
+type CollabClientMessage =
+  | { type: 'collab:join'; userName: string; userColor: string }
+  | { type: 'collab:heartbeat' }
+  | { type: 'collab:chat'; message: { id: string; content: string; timestamp: number } }
+  | { type: 'collab:cursor'; cursor: { line: number; column: number } }
+  | { type: 'collab:typing'; isTyping: boolean };
+
 interface ExtendedWebSocket extends WebSocket {
   isAlive: boolean;
   connectionInfo?: WsConnectionInfo;
@@ -213,8 +221,19 @@ export class WsServer {
       // Handle messages
       ws.on('message', (raw) => {
         try {
-          const message = JSON.parse(raw.toString());
-          this.handleCollabMessage(ws, message);
+          const parsed = JSON.parse(raw.toString());
+
+          // Validate message has required 'type' field
+          if (!parsed || typeof parsed.type !== 'string') {
+            ws.send(JSON.stringify({
+              type: 'error',
+              code: 'INVALID_MESSAGE',
+              message: 'Message must have a type field',
+            }));
+            return;
+          }
+
+          this.handleCollabMessage(ws, parsed as CollabClientMessage);
         } catch (error) {
           console.error(`Failed to parse collab message for session ${sessionId}:`, error);
           ws.send(JSON.stringify({
@@ -244,26 +263,19 @@ export class WsServer {
     });
   }
 
-  private handleCollabMessage(ws: CollabWebSocket, message: Record<string, unknown>): void {
+  private handleCollabMessage(ws: CollabWebSocket, message: CollabClientMessage): void {
     const { sessionId } = ws;
 
     switch (message.type) {
       case 'collab:join':
-        if (typeof message.userName === 'string' && typeof message.userColor === 'string') {
-          ws.userName = message.userName;
-          ws.userColor = message.userColor;
-          this.broadcastCollabPresence(sessionId);
-        } else {
-          ws.send(JSON.stringify({
-            type: 'error',
-            code: 'INVALID_PAYLOAD',
-            message: 'Invalid payload for collab:join',
-          }));
-        }
+        ws.userName = message.userName;
+        ws.userColor = message.userColor;
+        this.broadcastCollabPresence(sessionId);
         break;
 
       case 'collab:heartbeat':
-        // Just keep the connection alive, presence is broadcast on join/leave
+        // Broadcast presence on heartbeat to keep `lastSeen` fresh for clients
+        this.broadcastCollabPresence(sessionId);
         break;
 
       case 'collab:chat':
