@@ -1,9 +1,20 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import FileTree from './FileTree';
 import FilePreview from './FilePreview';
 import type { FileNode, FileContent } from '@/types';
+
+// Dynamic import for CodeEditor (heavy Monaco bundle)
+const CodeEditor = dynamic(() => import('./CodeEditor'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex-1 flex items-center justify-center bg-gray-900">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white" />
+    </div>
+  ),
+});
 
 interface FileExplorerProps {
   sessionId: string;
@@ -20,6 +31,7 @@ export default function FileExplorer({ sessionId }: FileExplorerProps) {
   // Default collapsed on mobile (< 640px)
   const [collapsed, setCollapsed] = useState(typeof window !== 'undefined' ? window.innerWidth < 640 : false);
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 640 : false);
+  const [editMode, setEditMode] = useState(false);
 
   // Track window resize for responsive behavior
   useEffect(() => {
@@ -219,13 +231,50 @@ export default function FileExplorer({ sessionId }: FileExplorerProps) {
         </button>
       )}
 
-      {/* Main - File Preview */}
+      {/* Main - File Preview or Editor */}
       <div className="flex-1 flex flex-col min-w-0">
-        <FilePreview
-          file={selectedFile}
-          loading={fileLoading}
-          error={selectedFile ? null : error}
-        />
+        {selectedFile && !selectedFile.binary && editMode ? (
+          <CodeEditor
+            file={selectedFile}
+            sessionId={sessionId}
+            onSave={() => {
+              // Refresh tree after save
+              handleRefresh();
+            }}
+            onClose={() => setEditMode(false)}
+          />
+        ) : (
+          <>
+            {/* Edit Mode Toggle */}
+            {selectedFile && !selectedFile.binary && (
+              <div className="flex items-center justify-end px-3 py-1 bg-gray-800 border-b border-gray-700">
+                <button
+                  onClick={() => setEditMode(!editMode)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded transition-colors ${
+                    editMode
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    />
+                  </svg>
+                  Edit
+                </button>
+              </div>
+            )}
+            <FilePreview
+              file={selectedFile}
+              loading={fileLoading}
+              error={selectedFile ? null : error}
+            />
+          </>
+        )}
       </div>
     </div>
   );

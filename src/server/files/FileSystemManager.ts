@@ -138,6 +138,52 @@ class FileSystemManager {
     return fs.readFile(validPath);
   }
 
+  // Write file content
+  async writeFile(filePath: string, content: string): Promise<void> {
+    const validPath = this.validatePath(filePath);
+
+    // Limit content size to 1MB
+    if (content.length > 1024 * 1024) {
+      throw new Error('Content too large (max 1MB)');
+    }
+
+    // Ensure directory exists
+    const dir = path.dirname(validPath);
+    await fs.mkdir(dir, { recursive: true });
+
+    await fs.writeFile(validPath, content, 'utf-8');
+  }
+
+  // Create a new file
+  async createFile(filePath: string, content: string = ''): Promise<void> {
+    const validPath = this.validatePath(filePath);
+
+    // Check if file already exists
+    try {
+      await fs.access(validPath);
+      throw new Error('File already exists');
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw error;
+      }
+    }
+
+    await this.writeFile(filePath, content);
+  }
+
+  // Delete a file
+  async deleteFile(filePath: string): Promise<void> {
+    const validPath = this.validatePath(filePath);
+    await fs.unlink(validPath);
+  }
+
+  // Rename/move a file
+  async renameFile(oldPath: string, newPath: string): Promise<void> {
+    const validOldPath = this.validatePath(oldPath);
+    const validNewPath = this.validatePath(newPath);
+    await fs.rename(validOldPath, validNewPath);
+  }
+
   // Get file info
   async getFileInfo(filePath: string): Promise<{
     exists: boolean;
