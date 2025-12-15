@@ -314,9 +314,14 @@ export class PtyManager extends EventEmitter {
     session.status = 'stopping';
 
     return new Promise<void>((resolve) => {
+      let forceKillTimeout: NodeJS.Timeout | null = null;
+
       // Listen for exit event to know when process has actually terminated
       const onExit = (exitSessionId: string, exitTerminal: TerminalKind) => {
         if (exitSessionId === sessionId && exitTerminal === terminal) {
+          if (forceKillTimeout) {
+            clearTimeout(forceKillTimeout);
+          }
           this.off('exit', onExit);
           resolve();
         }
@@ -330,7 +335,7 @@ export class PtyManager extends EventEmitter {
         session.pty.kill('SIGTERM');
 
         // Force kill after timeout if still running
-        setTimeout(() => {
+        forceKillTimeout = setTimeout(() => {
           // Check if the same session instance is still in the map
           // to avoid killing a new session started with the same ID
           if (this.sessions.get(key) === session) {
