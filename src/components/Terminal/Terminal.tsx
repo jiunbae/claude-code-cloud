@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import type { Terminal as XTerminal } from '@xterm/xterm';
 import type { FitAddon } from '@xterm/addon-fit';
 import type { TerminalKind } from '@/types';
+import { MobileKeyboard } from './MobileKeyboard';
 
 interface TerminalProps {
   sessionId: string;
@@ -301,6 +302,43 @@ export default function Terminal({
     [fitAndNotifyResize]
   );
 
+  // Mobile keyboard handlers
+  const sendInput = useCallback((data: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'terminal:input', data }));
+    }
+  }, []);
+
+  const handleMobileKeyPress = useCallback((key: string) => {
+    sendInput(key);
+  }, [sendInput]);
+
+  const handleMobileSpecialKey = useCallback((key: 'Tab' | 'Escape' | 'Enter') => {
+    const keyMap: Record<string, string> = {
+      Tab: '\t',
+      Escape: '\x1b',
+      Enter: '\r',
+    };
+    sendInput(keyMap[key]);
+  }, [sendInput]);
+
+  const handleMobileCtrlKey = useCallback((key: string) => {
+    // Ctrl+key sends the character code - 64 (for uppercase) or - 96 (for lowercase)
+    const ctrlChar = String.fromCharCode(key.toUpperCase().charCodeAt(0) - 64);
+    sendInput(ctrlChar);
+  }, [sendInput]);
+
+  const handleMobileArrowKey = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
+    // Arrow keys use ANSI escape sequences
+    const arrowMap: Record<string, string> = {
+      up: '\x1b[A',
+      down: '\x1b[B',
+      right: '\x1b[C',
+      left: '\x1b[D',
+    };
+    sendInput(arrowMap[direction]);
+  }, [sendInput]);
+
   return (
     <div className="flex flex-col h-full">
       {/* Terminal Header - Mobile Optimized */}
@@ -377,6 +415,16 @@ export default function Terminal({
       </div>
       {/* Terminal Container */}
       <div ref={terminalRef} className="flex-1 bg-[#1a1b26] overflow-hidden" />
+
+      {/* Mobile Keyboard - shown only on mobile and when not read-only */}
+      {!readOnly && (
+        <MobileKeyboard
+          onKeyPress={handleMobileKeyPress}
+          onSpecialKey={handleMobileSpecialKey}
+          onCtrlKey={handleMobileCtrlKey}
+          onArrowKey={handleMobileArrowKey}
+        />
+      )}
     </div>
   );
 }
