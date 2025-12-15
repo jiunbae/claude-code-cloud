@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { Header } from '@/components/Layout';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { SessionCard, CreateSessionModal } from '@/components/Session';
 import { WorkspaceList, CreateWorkspaceModal } from '@/components/Workspace';
 import { AuthGuard } from '@/components/Auth';
@@ -12,11 +11,12 @@ import { useSessionStore } from '@/stores/sessionStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import type { Session, CreateSessionRequest, Workspace, CreateWorkspaceRequest } from '@/types';
 
-type TabType = 'workspaces' | 'sessions';
+type TabType = 'sessions' | 'workspaces';
 
 function Dashboard() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<TabType>('workspaces');
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState<TabType>('sessions');
   const [isCreateSessionModalOpen, setIsCreateSessionModalOpen] = useState(false);
   const [isCreateWorkspaceModalOpen, setIsCreateWorkspaceModalOpen] = useState(false);
   const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(null);
@@ -52,6 +52,28 @@ function Dashboard() {
     };
     fetchData();
   }, [getSessions, getWorkspaces, setSessions, setWorkspaces]);
+
+  // Handle URL params for tab and action
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    const action = searchParams.get('action');
+
+    if (tab === 'sessions' || tab === 'workspaces') {
+      setActiveTab(tab);
+    }
+
+    if (action === 'new') {
+      if (tab === 'workspaces') {
+        setIsCreateWorkspaceModalOpen(true);
+      } else {
+        setIsCreateSessionModalOpen(true);
+      }
+      // Clear the action param from URL
+      const newParams = new URLSearchParams(searchParams.toString());
+      newParams.delete('action');
+      router.replace(`/?${newParams.toString()}`);
+    }
+  }, [searchParams, router]);
 
   // Workspace handlers
   const handleCreateWorkspace = useCallback(
@@ -136,28 +158,10 @@ function Dashboard() {
   const error = sessionError || workspaceError;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-900 to-gray-950 text-white">
-      <Header />
-
+    <div className="h-full overflow-auto bg-gradient-to-b from-gray-900 via-gray-900 to-gray-950 text-white">
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-5xl">
-        {/* Tabs */}
+        {/* Tabs - Sessions first */}
         <div className="flex items-center gap-1 mb-6 border-b border-gray-700/50">
-          <button
-            onClick={() => setActiveTab('workspaces')}
-            className={`px-4 py-3 text-sm font-medium transition-colors relative ${
-              activeTab === 'workspaces'
-                ? 'text-white'
-                : 'text-gray-400 hover:text-gray-300'
-            }`}
-          >
-            Workspaces
-            <span className="ml-2 px-1.5 py-0.5 text-xs bg-gray-700 rounded">
-              {workspaces.length}
-            </span>
-            {activeTab === 'workspaces' && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />
-            )}
-          </button>
           <button
             onClick={() => setActiveTab('sessions')}
             className={`px-4 py-3 text-sm font-medium transition-colors relative ${
@@ -171,6 +175,22 @@ function Dashboard() {
               {sessions.length}
             </span>
             {activeTab === 'sessions' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('workspaces')}
+            className={`px-4 py-3 text-sm font-medium transition-colors relative ${
+              activeTab === 'workspaces'
+                ? 'text-white'
+                : 'text-gray-400 hover:text-gray-300'
+            }`}
+          >
+            Workspaces
+            <span className="ml-2 px-1.5 py-0.5 text-xs bg-gray-700 rounded">
+              {workspaces.length}
+            </span>
+            {activeTab === 'workspaces' && (
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />
             )}
           </button>
