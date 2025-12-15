@@ -15,6 +15,9 @@ COPY package.json pnpm-lock.yaml ./
 # Install dependencies
 RUN pnpm install
 
+# Install Claude Code CLI for dev container (provides `claude` binary)
+RUN npm install -g @anthropic-ai/claude-code && claude --version
+
 # Expose ports
 EXPOSE 3000 3001
 

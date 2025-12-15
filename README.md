@@ -24,7 +24,9 @@ Run Claude Code in the cloud with web-based terminal access.
 
 - Node.js 22+
 - pnpm
-- Claude Code CLI installed
+- Claude Code CLI installed (host dev)
+  - `npm install -g @anthropic-ai/claude-code`
+  - Docker images built from this repo now include the CLI automatically, so no extra step is needed when running with `docker compose`.
 
 ### Development
 
@@ -48,6 +50,9 @@ docker compose up -d
 
 # Or for development with hot reload
 docker compose --profile dev up
+
+# Rebuild image after updates (ensures Claude CLI is baked in)
+docker compose build --pull
 ```
 
 ## Project Structure

@@ -3,6 +3,7 @@ version: '3.8'
 services:
   app:
     image: registry.im-si.org/claude-code-cloud:latest
+    build: .
     container_name: claude-code-cloud
     ports:
       - "13000:3000"   # Next.js Web UI (external 13000 → internal 3000)

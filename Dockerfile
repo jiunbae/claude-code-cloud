@@ -33,6 +33,12 @@ COPY . .
 # Build Next.js app
 RUN pnpm build
 
+# ===== Claude CLI Stage =====
+FROM base AS claude-cli
+
+# Install Claude Code CLI globally (provides `claude` binary used by PTY server)
+RUN npm install -g @anthropic-ai/claude-code && claude --version
+
 # ===== Runtime Stage =====
 FROM node:20-bookworm-slim AS runner
 
@@ -50,6 +56,11 @@ RUN apt-get update && apt-get install -y \
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Install Claude Code CLI from build stage
+COPY --from=claude-cli /usr/local/lib/node_modules /usr/local/lib/node_modules
+COPY --from=claude-cli /usr/local/bin/claude /usr/local/bin/claude
+COPY --from=claude-cli /usr/local/share /usr/local/share
 
 # Create non-root user (node user already exists with UID/GID 1000 in the base image)
 # Rename and reconfigure the existing node user
