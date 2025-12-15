@@ -315,6 +315,12 @@ export class PtyManager extends EventEmitter {
     // Return existing promise if stop is already in progress
     const existingPromise = this.stoppingPromises.get(key);
     if (existingPromise) {
+      // If the new request is a force stop, escalate by sending SIGKILL.
+      // The existing promise's cleanup logic will handle the rest.
+      if (force) {
+        const session = this.sessions.get(key);
+        session?.pty.kill('SIGKILL');
+      }
       return existingPromise;
     }
 
