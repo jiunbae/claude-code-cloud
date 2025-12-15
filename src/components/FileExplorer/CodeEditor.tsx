@@ -80,31 +80,7 @@ export default function CodeEditor({
     setHasChanges(content !== originalContent);
   }, [content, originalContent]);
 
-  // Handle keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-        e.preventDefault();
-        if (!readOnly && hasChanges) {
-          handleSave();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [hasChanges, readOnly]);
-
-  const handleEditorMount: OnMount = useCallback((editor) => {
-    editorRef.current = editor;
-    editor.focus();
-  }, []);
-
-  const handleChange: OnChange = useCallback((value) => {
-    setContent(value || '');
-    setError(null);
-  }, []);
-
+  // handleSave moved up to be available for keyboard shortcuts
   const handleSave = useCallback(async () => {
     if (saving || readOnly) return;
 
@@ -133,6 +109,31 @@ export default function CodeEditor({
       setSaving(false);
     }
   }, [file.path, content, sessionId, saving, readOnly, onSave]);
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        if (!readOnly && hasChanges) {
+          handleSave();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [hasChanges, readOnly, handleSave]);
+
+  const handleEditorMount: OnMount = useCallback((editor) => {
+    editorRef.current = editor;
+    editor.focus();
+  }, []);
+
+  const handleChange: OnChange = useCallback((value) => {
+    setContent(value || '');
+    setError(null);
+  }, []);
 
   return (
     <div className="flex flex-col h-full bg-[#1e1e1e]">

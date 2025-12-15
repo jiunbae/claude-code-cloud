@@ -102,6 +102,7 @@ export default function Chat({
       {/* Chat toggle button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
+        aria-label={isOpen ? 'Close chat' : 'Open chat'}
         className={`relative p-3 rounded-full shadow-lg transition-colors ${
           isOpen
             ? 'bg-blue-600 text-white'

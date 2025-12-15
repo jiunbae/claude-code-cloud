@@ -158,17 +158,15 @@ class FileSystemManager {
   async createFile(filePath: string, content: string = ''): Promise<void> {
     const validPath = this.validatePath(filePath);
 
-    // Check if file already exists
+    // Use 'wx' flag for atomic write-if-not-exists operation to prevent race conditions
     try {
-      await fs.access(validPath);
-      throw new Error('File already exists');
+      await fs.writeFile(validPath, content, { flag: 'wx' });
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-        throw error;
+      if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+        throw new Error('File already exists');
       }
+      throw error;
     }
-
-    await this.writeFile(filePath, content);
   }
 
   // Delete a file

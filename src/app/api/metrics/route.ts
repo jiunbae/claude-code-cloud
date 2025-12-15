@@ -93,8 +93,9 @@ export async function GET() {
       'gauge',
       'Number of active PTY processes'
     );
-  } catch {
+  } catch (error) {
     // Database might not be available
+    console.error('Failed to retrieve session metrics for Prometheus:', error);
     addMetric(
       'claude_code_sessions_total',
       0,

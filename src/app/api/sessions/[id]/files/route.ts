@@ -1,8 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
+import path from 'path';
 import { sessionStore } from '@/server/session/SessionStore';
 import { workspaceManager } from '@/server/workspace/WorkspaceManager';
 import { fileSystemManager } from '@/server/files/FileSystemManager';
 import { getAuthContext } from '@/server/auth';
+
+// Validate path to prevent path traversal attacks
+function validatePath(basePath: string, filePath: string): string | null {
+  const fullPath = path.join(basePath, filePath);
+  const normalizedBase = path.resolve(basePath);
+  const normalizedFull = path.resolve(fullPath);
+
+  // Ensure the resolved path is within the base directory
+  if (!normalizedFull.startsWith(normalizedBase + path.sep) && normalizedFull !== normalizedBase) {
+    return null;
+  }
+  return normalizedFull;
+}
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -55,7 +69,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // If path is provided, return file content
     if (filePath) {
-      const fullPath = `${projectPath}/${filePath}`;
+      const fullPath = validatePath(projectPath, filePath);
+      if (!fullPath) {
+        return NextResponse.json({ error: 'Invalid file path' }, { status: 400 });
+      }
       const info = await fileSystemManager.getFileInfo(fullPath);
 
       if (!info.exists) {
@@ -128,7 +145,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Content must be a string' }, { status: 400 });
     }
 
-    const fullPath = `${projectPath}/${filePath}`;
+    const fullPath = validatePath(projectPath, filePath);
+    if (!fullPath) {
+      return NextResponse.json({ error: 'Invalid file path' }, { status: 400 });
+    }
 
     await fileSystemManager.writeFile(fullPath, content);
 
@@ -172,7 +192,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'File path is required' }, { status: 400 });
     }
 
-    const fullPath = `${projectPath}/${filePath}`;
+    const fullPath = validatePath(projectPath, filePath);
+    if (!fullPath) {
+      return NextResponse.json({ error: 'Invalid file path' }, { status: 400 });
+    }
 
     await fileSystemManager.deleteFile(fullPath);
 

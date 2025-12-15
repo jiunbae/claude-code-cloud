@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 export interface CollaboratorPresence {
-  odId: string;
+  id: string;
   name: string;
   color: string;
   cursor?: { line: number; column: number };
@@ -111,7 +111,7 @@ export function useCollaboration({
             setState(prev => ({
               ...prev,
               collaborators: message.collaborators.filter(
-                (c: CollaboratorPresence) => c.odId !== userIdRef.current
+                (c: CollaboratorPresence) => c.id !== userIdRef.current
               ),
             }));
             break;
@@ -127,7 +127,7 @@ export function useCollaboration({
             setState(prev => ({
               ...prev,
               collaborators: prev.collaborators.map(c =>
-                c.odId === message.userId
+                c.id === message.userId
                   ? { ...c, cursor: message.cursor }
                   : c
               ),
@@ -138,7 +138,7 @@ export function useCollaboration({
             setState(prev => ({
               ...prev,
               collaborators: prev.collaborators.map(c =>
-                c.odId === message.userId
+                c.id === message.userId
                   ? { ...c, isTyping: message.isTyping }
                   : c
               ),

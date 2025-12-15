@@ -41,7 +41,7 @@ export default function PresenceIndicator({
           <div className="flex -space-x-1.5">
             {activeUsers.slice(0, 5).map((user) => (
               <div
-                key={user.odId}
+                key={user.id}
                 className="relative group"
               >
                 <div
