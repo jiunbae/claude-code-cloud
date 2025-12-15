@@ -20,7 +20,15 @@ class SessionStore {
       }
 
       this._db = new Database(DB_PATH);
-      this._db.pragma('journal_mode = WAL');
+
+      // Performance optimizations
+      this._db.pragma('journal_mode = WAL');           // Write-Ahead Logging for better concurrency
+      this._db.pragma('synchronous = NORMAL');         // Faster than FULL, still safe with WAL
+      this._db.pragma('cache_size = -64000');          // 64MB cache (negative = KB)
+      this._db.pragma('temp_store = MEMORY');          // Use memory for temp tables
+      this._db.pragma('busy_timeout = 5000');          // 5 second timeout for locked database
+      this._db.pragma('mmap_size = 268435456');        // 256MB memory-mapped I/O
+
       this.initSchema();
     }
     return this._db;
