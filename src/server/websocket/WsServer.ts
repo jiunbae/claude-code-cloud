@@ -6,6 +6,9 @@ import { ptyManager } from '../pty/PtyManager';
 import { VALID_TERMINAL_TYPES } from '@/types';
 import type { ClientMessage, ServerMessage, TerminalKind, WsConnectionInfo } from '@/types';
 
+// Constants
+const DEFAULT_COLLAB_COLOR = '#7aa2f7';
+
 interface ExtendedWebSocket extends WebSocket {
   isAlive: boolean;
   connectionInfo?: WsConnectionInfo;
@@ -62,13 +65,14 @@ export class WsServer {
   private setupUpgradeHandler(): void {
     this.httpServer.on('upgrade', (request: IncomingMessage, socket: Socket, head: Buffer) => {
       const { pathname } = parseUrl(request.url || '', true);
+      const normalizedPathname = pathname?.replace(/\/$/, '') ?? '';
 
-      if (pathname === '/ws' || pathname === '/ws/') {
+      if (normalizedPathname === '/ws') {
         // Terminal WebSocket
         this.terminalWss.handleUpgrade(request, socket, head, (ws) => {
           this.terminalWss.emit('connection', ws, request);
         });
-      } else if (pathname === '/ws/collab' || pathname === '/ws/collab/') {
+      } else if (normalizedPathname === '/ws/collab') {
         // Collaboration WebSocket
         this.collabWss.handleUpgrade(request, socket, head, (ws) => {
           this.collabWss.emit('connection', ws, request);
@@ -153,7 +157,8 @@ export class WsServer {
         try {
           const message = JSON.parse(raw.toString()) as ClientMessage;
           this.handleTerminalMessage(ws, sessionId, terminal, message);
-        } catch {
+        } catch (error) {
+          console.error(`Failed to parse terminal message for session ${sessionId}:`, error);
           this.sendMessage(ws, {
             type: 'error',
             code: 'INVALID_MESSAGE',
@@ -210,7 +215,8 @@ export class WsServer {
         try {
           const message = JSON.parse(raw.toString());
           this.handleCollabMessage(ws, message);
-        } catch {
+        } catch (error) {
+          console.error(`Failed to parse collab message for session ${sessionId}:`, error);
           ws.send(JSON.stringify({
             type: 'error',
             code: 'INVALID_MESSAGE',
@@ -243,9 +249,17 @@ export class WsServer {
 
     switch (message.type) {
       case 'collab:join':
-        ws.userName = message.userName as string;
-        ws.userColor = message.userColor as string;
-        this.broadcastCollabPresence(sessionId);
+        if (typeof message.userName === 'string' && typeof message.userColor === 'string') {
+          ws.userName = message.userName;
+          ws.userColor = message.userColor;
+          this.broadcastCollabPresence(sessionId);
+        } else {
+          ws.send(JSON.stringify({
+            type: 'error',
+            code: 'INVALID_PAYLOAD',
+            message: 'Invalid payload for collab:join',
+          }));
+        }
         break;
 
       case 'collab:heartbeat':
@@ -314,7 +328,7 @@ export class WsServer {
         collaborators.push({
           id: client.userId,
           name: client.userName,
-          color: client.userColor || '#7aa2f7',
+          color: client.userColor || DEFAULT_COLLAB_COLOR,
           lastSeen: Date.now(),
           isTyping: false,
         });
