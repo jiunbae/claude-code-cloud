@@ -25,10 +25,14 @@ interface PtyManagerEvents {
 }
 
 const MAX_OUTPUT_BUFFER_SIZE = 5000; // lines
+const FORCE_KILL_TIMEOUT_MS = 5000; // ms to wait before force kill after graceful shutdown
+const SHUTDOWN_GRACE_PERIOD_MS = 2000; // extra time to wait for exit event after kill signal
 
 export class PtyManager extends EventEmitter {
   // Map key is `${sessionId}:${terminal}`
   private sessions: Map<string, PtySession> = new Map();
+  // Track in-progress stop operations to return same Promise for concurrent calls
+  private stoppingPromises: Map<string, Promise<void>> = new Map();
 
   constructor() {
     super();
@@ -306,24 +310,78 @@ export class PtyManager extends EventEmitter {
     terminal: TerminalKind = 'claude',
     force = false
   ): Promise<void> {
-    const session = this.sessions.get(this.getKey(sessionId, terminal));
-    if (!session) return;
+    const key = this.getKey(sessionId, terminal);
+
+    // Return existing promise if stop is already in progress
+    const existingPromise = this.stoppingPromises.get(key);
+    if (existingPromise) {
+      // If the new request is a force stop, escalate by sending SIGKILL.
+      // The existing promise's cleanup logic will handle the rest.
+      if (force) {
+        const session = this.sessions.get(key);
+        session?.pty.kill('SIGKILL');
+      }
+      return existingPromise;
+    }
+
+    const session = this.sessions.get(key);
+    if (!session) return Promise.resolve();
 
     session.status = 'stopping';
 
-    if (force) {
-      session.pty.kill('SIGKILL');
-    } else {
-      // Graceful shutdown
-      session.pty.kill('SIGTERM');
+    const stoppingPromise = new Promise<void>((resolve) => {
+      const cleanupAndResolve = () => {
+        this.stoppingPromises.delete(key);
+        resolve();
+      };
 
-      // Force kill after timeout
-      setTimeout(() => {
-        if (this.sessions.has(sessionId)) {
-          session.pty.kill('SIGKILL');
+      // Overall timeout to prevent hanging if exit event never fires (e.g., zombie process)
+      const shutdownTimeoutMs = force
+        ? SHUTDOWN_GRACE_PERIOD_MS
+        : FORCE_KILL_TIMEOUT_MS + SHUTDOWN_GRACE_PERIOD_MS;
+
+      const overallTimeout = setTimeout(() => {
+        console.error(
+          `[PTY] Session ${sessionId}:${terminal} failed to stop within ${shutdownTimeoutMs}ms. It might be orphaned.`
+        );
+        this.off('exit', onExit);
+        cleanupAndResolve();
+      }, shutdownTimeoutMs);
+
+      let forceKillTimeout: NodeJS.Timeout | null = null;
+
+      // Listen for exit event to know when process has actually terminated
+      const onExit = (exitSessionId: string, exitTerminal: TerminalKind) => {
+        if (exitSessionId === sessionId && exitTerminal === terminal) {
+          if (forceKillTimeout) {
+            clearTimeout(forceKillTimeout);
+          }
+          clearTimeout(overallTimeout);
+          this.off('exit', onExit);
+          cleanupAndResolve();
         }
-      }, 5000);
-    }
+      };
+      this.on('exit', onExit);
+
+      if (force) {
+        session.pty.kill('SIGKILL');
+      } else {
+        // Graceful shutdown
+        session.pty.kill('SIGTERM');
+
+        // Force kill after timeout if still running
+        forceKillTimeout = setTimeout(() => {
+          // Check if the same session instance is still in the map
+          // to avoid killing a new session started with the same ID
+          if (this.sessions.get(key) === session) {
+            session.pty.kill('SIGKILL');
+          }
+        }, FORCE_KILL_TIMEOUT_MS);
+      }
+    });
+
+    this.stoppingPromises.set(key, stoppingPromise);
+    return stoppingPromise;
   }
 
   getScrollback(sessionId: string, terminal: TerminalKind): string[] {

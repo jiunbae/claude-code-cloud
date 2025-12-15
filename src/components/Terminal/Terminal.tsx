@@ -12,6 +12,7 @@ interface TerminalProps {
   onStatusChange?: (status: 'connecting' | 'connected' | 'disconnected' | 'error') => void;
   readOnly?: boolean;
   terminal?: TerminalKind;
+  onFullscreenChange?: (isFullscreen: boolean) => void;
 }
 
 // Generate default WebSocket URL based on current page location and env vars
@@ -40,9 +41,11 @@ export default function Terminal({
   onStatusChange,
   readOnly = false,
   terminal = 'claude',
+  onFullscreenChange,
 }: TerminalProps) {
   const effectiveWsUrl = wsUrl || getDefaultWsUrl();
   const terminalRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -52,6 +55,8 @@ export default function Terminal({
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>(
     'disconnected'
   );
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [terminalHeight, setTerminalHeight] = useState<number | 'auto'>('auto');
 
   const updateStatus = useCallback(
     (newStatus: 'connecting' | 'connected' | 'disconnected' | 'error') => {
@@ -339,10 +344,74 @@ export default function Terminal({
     sendInput(arrowMap[direction]);
   }, [sendInput]);
 
+  // Fullscreen and height adjustment
+  const toggleFullscreen = useCallback(() => {
+    setIsFullscreen((prev) => {
+      const next = !prev;
+      onFullscreenChange?.(next);
+      // Trigger resize after state change
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => fitAndNotifyResize());
+      });
+      return next;
+    });
+  }, [onFullscreenChange, fitAndNotifyResize]);
+
+  const adjustHeight = useCallback(
+    (delta: number) => {
+      setTerminalHeight((prev) => {
+        if (prev === 'auto') {
+          // Get current height from container
+          const currentHeight = containerRef.current?.offsetHeight ?? 400;
+          return Math.max(200, Math.min(window.innerHeight - 100, currentHeight + delta));
+        }
+        return Math.max(200, Math.min(window.innerHeight - 100, prev + delta));
+      });
+      requestAnimationFrame(() => fitAndNotifyResize());
+    },
+    [fitAndNotifyResize]
+  );
+
+  const resetHeight = useCallback(() => {
+    setTerminalHeight('auto');
+    requestAnimationFrame(() => fitAndNotifyResize());
+  }, [fitAndNotifyResize]);
+
+  // Handle ESC key to exit fullscreen
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+        onFullscreenChange?.(false);
+        requestAnimationFrame(() => fitAndNotifyResize());
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen, onFullscreenChange, fitAndNotifyResize]);
+
+  // Compute container styles
+  const containerStyle: React.CSSProperties = isFullscreen
+    ? {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 50,
+      }
+    : terminalHeight !== 'auto'
+      ? { height: terminalHeight }
+      : {};
+
   return (
-    <div className="flex flex-col h-full">
+    <div
+      ref={containerRef}
+      className={`flex flex-col ${isFullscreen ? '' : 'h-full'}`}
+      style={containerStyle}
+    >
       {/* Terminal Header - Mobile Optimized */}
-      <div className="flex items-center justify-between px-2 sm:px-4 py-1.5 sm:py-2 bg-gray-800 border-b border-gray-700">
+      <div className="flex items-center justify-between px-2 sm:px-4 py-1.5 sm:py-2 bg-gray-800 border-b border-gray-700 flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <div
             className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
@@ -370,6 +439,42 @@ export default function Terminal({
           </span>
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
+          {/* Height controls */}
+          <div className="hidden sm:flex items-center gap-1 border-r border-gray-600 pr-2 mr-1">
+            <button
+              onClick={() => adjustHeight(-100)}
+              className="p-1.5 text-xs text-gray-400 hover:text-white hover:bg-gray-700 active:bg-gray-600 rounded transition-colors"
+              title="Decrease height"
+              aria-label="Decrease height"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            <button
+              onClick={() => adjustHeight(100)}
+              className="p-1.5 text-xs text-gray-400 hover:text-white hover:bg-gray-700 active:bg-gray-600 rounded transition-colors"
+              title="Increase height"
+              aria-label="Increase height"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+              </svg>
+            </button>
+            {terminalHeight !== 'auto' && (
+              <button
+                onClick={resetHeight}
+                className="p-1.5 text-xs text-gray-400 hover:text-white hover:bg-gray-700 active:bg-gray-600 rounded transition-colors"
+                title="Reset height"
+                aria-label="Reset height"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            )}
+          </div>
+          {/* Font size controls */}
           <button
             onClick={() => adjustFontSize(-1)}
             className="p-2 sm:px-3 sm:py-1.5 text-xs text-gray-400 hover:text-white hover:bg-gray-700 active:bg-gray-600 rounded-lg transition-colors"
@@ -385,6 +490,23 @@ export default function Terminal({
             aria-label="Increase font size"
           >
             A+
+          </button>
+          {/* Fullscreen toggle */}
+          <button
+            onClick={toggleFullscreen}
+            className="p-2 sm:px-3 sm:py-1.5 text-xs text-gray-400 hover:text-white hover:bg-gray-700 active:bg-gray-600 rounded-lg transition-colors"
+            title={isFullscreen ? 'Exit fullscreen (ESC)' : 'Fullscreen'}
+            aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+          >
+            {isFullscreen ? (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+              </svg>
+            )}
           </button>
           {!readOnly && (
             <>
@@ -414,7 +536,7 @@ export default function Terminal({
         </div>
       </div>
       {/* Terminal Container */}
-      <div ref={terminalRef} className="flex-1 bg-[#1a1b26] overflow-hidden" />
+      <div ref={terminalRef} className="flex-1 bg-[#1a1b26] overflow-hidden min-h-0" />
 
       {/* Mobile Keyboard - shown only on mobile and when not read-only */}
       {!readOnly && (

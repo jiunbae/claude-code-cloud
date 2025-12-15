@@ -128,17 +128,8 @@ function createHttpApi() {
     }
 
     if (terminalOrAction === 'stop' && req.method === 'POST') {
-      try {
-        if (!ptyManager.isRunning(sessionId)) {
-          sendJson(res, 400, { error: 'Session not running' });
-          return;
-        }
-        await ptyManager.stopSession(sessionId);
-        sendJson(res, 200, { success: true });
-      } catch (error) {
-        console.error('Failed to stop session:', error);
-        sendJson(res, 500, { error: (error as Error).message });
-      }
+      // Legacy route defaults to 'claude' terminal
+      await handleTerminalStop(req, res, sessionId, 'claude');
       return;
     }
 
