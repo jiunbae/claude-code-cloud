@@ -1,6 +1,6 @@
 import type { SessionStatus } from './session';
 
-export type TerminalKind = 'claude' | 'shell';
+export type TerminalKind = 'claude' | 'shell' | 'codex';
 
 // Client to Server messages
 export type ClientMessage =

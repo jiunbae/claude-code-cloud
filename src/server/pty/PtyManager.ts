@@ -49,8 +49,29 @@ export class PtyManager extends EventEmitter {
     return null;
   }
 
+  private resolveCodexBinary(): string | null {
+    const result = spawnSync('sh', ['-lc', 'command -v codex'], {
+      encoding: 'utf8',
+    });
+    if (result.status === 0) {
+      const resolved = result.stdout.trim();
+      return resolved.length > 0 ? resolved : null;
+    }
+    return null;
+  }
+
   private async resolveAnthropicApiKey(homeDir: string): Promise<string | null> {
     const keyPath = path.join(homeDir, '.anthropic', 'api_key');
+    try {
+      const key = (await fs.readFile(keyPath, 'utf8')).trim();
+      return key.length > 0 ? key : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async resolveOpenAIApiKey(homeDir: string): Promise<string | null> {
+    const keyPath = path.join(homeDir, '.openai', 'api_key');
     try {
       const key = (await fs.readFile(keyPath, 'utf8')).trim();
       return key.length > 0 ? key : null;
@@ -143,9 +164,19 @@ export class PtyManager extends EventEmitter {
         COLORTERM: 'truecolor',
       };
 
-      const command = terminal === 'claude' ? this.resolveClaudeBinary() : this.resolveShellBinary();
-      if (terminal === 'claude' && !command) {
-        throw new Error('Claude CLI not found in PATH (expected `claude`). Install it in the container image.');
+      let command: string | null;
+      if (terminal === 'claude') {
+        command = this.resolveClaudeBinary();
+        if (!command) {
+          throw new Error('Claude CLI not found in PATH (expected `claude`). Install it in the container image.');
+        }
+      } else if (terminal === 'codex') {
+        command = this.resolveCodexBinary();
+        if (!command) {
+          throw new Error('Codex CLI not found in PATH (expected `codex`). Install it in the container image.');
+        }
+      } else {
+        command = this.resolveShellBinary();
       }
 
       // Claude-specific env/config
@@ -161,6 +192,17 @@ export class PtyManager extends EventEmitter {
         // Ensure Claude CLI config directory is writable; fall back if necessary
         const claudeConfigDir = await this.resolveClaudeConfigDir(homeDir);
         env.CLAUDE_CONFIG_DIR = claudeConfigDir;
+      }
+
+      // Codex-specific env/config
+      if (terminal === 'codex') {
+        // If OPENAI_API_KEY is not provided, try ~/.openai/api_key
+        if (!env.OPENAI_API_KEY) {
+          const apiKey = await this.resolveOpenAIApiKey(homeDir);
+          if (apiKey) {
+            env.OPENAI_API_KEY = apiKey;
+          }
+        }
       }
 
       // Spawn process

@@ -89,7 +89,7 @@ export default function Terminal({
 
     ws.onopen = () => {
       updateStatus('connected');
-      const label = terminal === 'shell' ? 'Terminal' : 'Claude';
+      const label = terminal === 'shell' ? 'Terminal' : terminal === 'codex' ? 'Codex' : 'Claude';
       xtermRef.current?.writeln(`\x1b[32m● Connected to ${label}\x1b[0m\n`);
 
       // Send initial resize
@@ -115,14 +115,17 @@ export default function Terminal({
             break;
 
           case 'session:status':
-            if (message.status === 'running') {
-              xtermRef.current?.writeln(
-                `\x1b[32m● ${terminal === 'shell' ? 'Shell' : 'Claude Code'} started\x1b[0m`
-              );
-            } else if (message.status === 'idle') {
-              xtermRef.current?.writeln(
-                `\x1b[33m● ${terminal === 'shell' ? 'Shell' : 'Claude Code'} exited (code: ${message.exitCode ?? 'unknown'})\x1b[0m`
-              );
+            {
+              const statusLabel = terminal === 'shell' ? 'Shell' : terminal === 'codex' ? 'Codex' : 'Claude Code';
+              if (message.status === 'running') {
+                xtermRef.current?.writeln(
+                  `\x1b[32m● ${statusLabel} started\x1b[0m`
+                );
+              } else if (message.status === 'idle') {
+                xtermRef.current?.writeln(
+                  `\x1b[33m● ${statusLabel} exited (code: ${message.exitCode ?? 'unknown'})\x1b[0m`
+                );
+              }
             }
             break;
 

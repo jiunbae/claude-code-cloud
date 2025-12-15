@@ -191,6 +191,102 @@ function createHttpApi() {
       return;
     }
 
+    // POST /sessions/:id/codex/start
+    if (
+      req.method === 'POST' &&
+      pathParts[0] === 'sessions' &&
+      pathParts[2] === 'codex' &&
+      pathParts[3] === 'start'
+    ) {
+      const sessionId = pathParts[1];
+
+      try {
+        // Read request body
+        let body = '';
+        for await (const chunk of req) {
+          body += chunk;
+        }
+        const data = body ? JSON.parse(body) : {};
+        const { projectPath, config } = data;
+
+        if (!projectPath) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'projectPath required' }));
+          return;
+        }
+
+        if (ptyManager.isRunning(sessionId, 'codex')) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true, pid: ptyManager.getPid(sessionId, 'codex') }));
+          return;
+        }
+
+        const { pid } = await ptyManager.startSession(sessionId, projectPath, config || {}, 'codex');
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, pid }));
+      } catch (error) {
+        console.error('Failed to start codex:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: (error as Error).message }));
+      }
+      return;
+    }
+
+    // POST /sessions/:id/codex/stop
+    if (
+      req.method === 'POST' &&
+      pathParts[0] === 'sessions' &&
+      pathParts[2] === 'codex' &&
+      pathParts[3] === 'stop'
+    ) {
+      const sessionId = pathParts[1];
+
+      try {
+        if (!ptyManager.isRunning(sessionId, 'codex')) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Codex not running' }));
+          return;
+        }
+
+        let body = '';
+        for await (const chunk of req) {
+          body += chunk;
+        }
+        const data = body ? JSON.parse(body) : {};
+
+        await ptyManager.stopSession(sessionId, 'codex', data.force === true);
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true }));
+      } catch (error) {
+        console.error('Failed to stop codex:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: (error as Error).message }));
+      }
+      return;
+    }
+
+    // GET /sessions/:id/codex/status
+    if (
+      req.method === 'GET' &&
+      pathParts[0] === 'sessions' &&
+      pathParts[2] === 'codex' &&
+      pathParts[3] === 'status'
+    ) {
+      const sessionId = pathParts[1];
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          running: ptyManager.isRunning(sessionId, 'codex'),
+          status: ptyManager.getStatus(sessionId, 'codex'),
+          pid: ptyManager.getPid(sessionId, 'codex'),
+        })
+      );
+      return;
+    }
+
     // 404 for other routes
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Not found' }));
