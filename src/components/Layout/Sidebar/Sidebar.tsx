@@ -6,6 +6,7 @@ import { useSidebarStore } from '@/stores/sidebarStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useSession } from '@/hooks/useSession';
 import { SessionGroup } from './SessionGroup';
+import { APP_NAME } from '@/config';
 import type { Session } from '@/types';
 
 export function Sidebar() {
@@ -98,7 +99,7 @@ export function Sidebar() {
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-700">
         {!isCollapsed && (
-          <h1 className="text-lg font-semibold text-white truncate">Claude Code</h1>
+          <h1 className="text-lg font-semibold text-white truncate">{APP_NAME}</h1>
         )}
         <button
           onClick={toggleCollapsed}

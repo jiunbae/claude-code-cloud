@@ -162,38 +162,26 @@ function Dashboard() {
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-5xl">
         {/* Tabs - Sessions first */}
         <div className="flex items-center gap-1 mb-6 border-b border-gray-700/50">
-          <button
-            onClick={() => setActiveTab('sessions')}
-            className={`px-4 py-3 text-sm font-medium transition-colors relative ${
-              activeTab === 'sessions'
-                ? 'text-white'
-                : 'text-gray-400 hover:text-gray-300'
-            }`}
-          >
-            Sessions
-            <span className="ml-2 px-1.5 py-0.5 text-xs bg-gray-700 rounded">
-              {sessions.length}
-            </span>
-            {activeTab === 'sessions' && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('workspaces')}
-            className={`px-4 py-3 text-sm font-medium transition-colors relative ${
-              activeTab === 'workspaces'
-                ? 'text-white'
-                : 'text-gray-400 hover:text-gray-300'
-            }`}
-          >
-            Workspaces
-            <span className="ml-2 px-1.5 py-0.5 text-xs bg-gray-700 rounded">
-              {workspaces.length}
-            </span>
-            {activeTab === 'workspaces' && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />
-            )}
-          </button>
+          {[
+            { id: 'sessions' as const, label: 'Sessions', count: sessions.length },
+            { id: 'workspaces' as const, label: 'Workspaces', count: workspaces.length },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-3 text-sm font-medium transition-colors relative ${
+                activeTab === tab.id ? 'text-white' : 'text-gray-400 hover:text-gray-300'
+              }`}
+            >
+              {tab.label}
+              <span className="ml-2 px-1.5 py-0.5 text-xs bg-gray-700 rounded">
+                {tab.count}
+              </span>
+              {activeTab === tab.id && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />
+              )}
+            </button>
+          ))}
         </div>
 
         {/* Error Display */}

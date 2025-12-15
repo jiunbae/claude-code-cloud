@@ -16,7 +16,6 @@ export function MobileKeyboard({
   onArrowKey,
 }: MobileKeyboardProps) {
   const [isCtrlActive, setIsCtrlActive] = useState(false);
-  const [isAltActive, setIsAltActive] = useState(false);
 
   const handleKeyPress = useCallback(
     (key: string) => {
@@ -32,12 +31,6 @@ export function MobileKeyboard({
 
   const toggleCtrl = useCallback(() => {
     setIsCtrlActive((prev) => !prev);
-    setIsAltActive(false);
-  }, []);
-
-  const toggleAlt = useCallback(() => {
-    setIsAltActive((prev) => !prev);
-    setIsCtrlActive(false);
   }, []);
 
   const buttonClass = `
@@ -77,13 +70,6 @@ export function MobileKeyboard({
           aria-pressed={isCtrlActive}
         >
           Ctrl
-        </button>
-        <button
-          onClick={toggleAlt}
-          className={modifierClass(isAltActive)}
-          aria-pressed={isAltActive}
-        >
-          Alt
         </button>
         <button onClick={() => onSpecialKey('Tab')} className={buttonClass}>
           Tab

@@ -5,6 +5,7 @@ import { Sidebar } from './Sidebar';
 import { CommandPalette } from './CommandPalette';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useSidebarStore } from '@/stores/sidebarStore';
+import { APP_NAME } from '@/config';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -40,7 +41,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               />
             </svg>
           </button>
-          <h1 className="text-lg font-semibold text-white">Claude Code</h1>
+          <h1 className="text-lg font-semibold text-white">{APP_NAME}</h1>
         </header>
 
         {/* Page Content */}
