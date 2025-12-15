@@ -67,7 +67,7 @@ export default function CodeEditor({
 }: CodeEditorProps) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const [content, setContent] = useState(file.content || '');
-  const [originalContent] = useState(file.content || '');
+  const [originalContent, setOriginalContent] = useState(file.content || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
@@ -102,6 +102,8 @@ export default function CodeEditor({
         throw new Error(data.error || 'Failed to save file');
       }
 
+      // Update originalContent to reflect saved state
+      setOriginalContent(content);
       onSave?.(file.path);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save file');

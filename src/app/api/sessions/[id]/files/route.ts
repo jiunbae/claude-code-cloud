@@ -33,6 +33,11 @@ async function getWorkspacePath(sessionId: string, userId?: string) {
 
 // Validate path to prevent path traversal attacks (cross-platform)
 function validatePath(basePath: string, filePath: string): string | null {
+  // Reject empty string or current directory reference
+  if (!filePath || filePath === '.') {
+    return null;
+  }
+
   const fullPath = path.join(basePath, filePath);
   const normalizedBase = path.resolve(basePath);
   const normalizedFull = path.resolve(fullPath);

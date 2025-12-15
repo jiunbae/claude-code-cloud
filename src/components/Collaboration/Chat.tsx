@@ -49,6 +49,15 @@ export default function Chat({
     }
   }, [isOpen]);
 
+  // Cleanup typing timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Handle input change with typing indicator
   const handleInputChange = useCallback((value: string) => {
     setInput(value);

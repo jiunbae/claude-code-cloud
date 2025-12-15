@@ -8,6 +8,10 @@ export async function GET() {
   const timestamp = Date.now();
   const metrics: string[] = [];
 
+  // Helper to escape label values for Prometheus
+  const escapeLabelValue = (str: string) =>
+    str.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
+
   // Helper to add metric with optional labels
   const addMetric = (
     name: string,
@@ -18,7 +22,7 @@ export async function GET() {
   ) => {
     const labelStr = labels
       ? `{${Object.entries(labels)
-          .map(([k, v]) => `${k}="${v}"`)
+          .map(([k, v]) => `${k}="${escapeLabelValue(v)}"`)
           .join(',')}}`
       : '';
     metrics.push(`# HELP ${name} ${help}`);

@@ -63,15 +63,14 @@ export function useCollaboration({
 
   const wsRef = useRef<WebSocket | null>(null);
   // Use sessionStorage for consistent userId across tabs/refreshes
-  const userIdRef = useRef<string>(
-    typeof window === 'undefined'
-      ? generateId()
-      : globalThis.sessionStorage?.getItem('collabUserId') || (() => {
-          const newId = generateId();
-          globalThis.sessionStorage?.setItem('collabUserId', newId);
-          return newId;
-        })()
-  );
+  const [userId] = useState(() => {
+    if (typeof window === 'undefined') return generateId();
+    const stored = globalThis.sessionStorage?.getItem('collabUserId');
+    if (stored) return stored;
+    const newId = generateId();
+    globalThis.sessionStorage?.setItem('collabUserId', newId);
+    return newId;
+  });
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -91,7 +90,7 @@ export function useCollaboration({
     const wsUrl = getWsUrl();
     if (!wsUrl) return;
 
-    const ws = new WebSocket(`${wsUrl}?sessionId=${sessionId}&userId=${userIdRef.current}`);
+    const ws = new WebSocket(`${wsUrl}?sessionId=${sessionId}&userId=${userId}`);
     wsRef.current = ws;
 
     ws.onopen = () => {
@@ -100,7 +99,7 @@ export function useCollaboration({
       // Send join message
       ws.send(JSON.stringify({
         type: 'collab:join',
-        userId: userIdRef.current,
+        userId,
         userName,
         userColor,
       }));
@@ -122,7 +121,7 @@ export function useCollaboration({
             setState(prev => ({
               ...prev,
               collaborators: message.collaborators.filter(
-                (c: CollaboratorPresence) => c.id !== userIdRef.current
+                (c: CollaboratorPresence) => c.id !== userId
               ),
             }));
             break;
@@ -177,7 +176,7 @@ export function useCollaboration({
     ws.onerror = (error) => {
       console.error('Collaboration WebSocket error:', error);
     };
-  }, [sessionId, userName, userColor, enabled, getWsUrl]);
+  }, [sessionId, userId, userName, userColor, enabled, getWsUrl]);
 
   // Disconnect
   const disconnect = useCallback(() => {
@@ -199,7 +198,7 @@ export function useCollaboration({
 
     const message: ChatMessage = {
       id: generateId(),
-      userId: userIdRef.current,
+      userId,
       userName,
       userColor,
       content,
@@ -216,7 +215,7 @@ export function useCollaboration({
       ...prev,
       messages: [...prev.messages.slice(-99), message],
     }));
-  }, [userName, userColor]);
+  }, [userId, userName, userColor]);
 
   // Update cursor position
   const updateCursor = useCallback((line: number, column: number) => {
@@ -256,7 +255,7 @@ export function useCollaboration({
     sendMessage,
     updateCursor,
     setTyping,
-    userId: userIdRef.current,
+    userId,
     userName,
     userColor,
   };
