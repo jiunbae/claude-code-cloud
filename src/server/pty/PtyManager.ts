@@ -314,6 +314,17 @@ export class PtyManager extends EventEmitter {
     session.status = 'stopping';
 
     return new Promise<void>((resolve) => {
+      // Overall timeout to prevent hanging if exit event never fires (e.g., zombie process)
+      const shutdownTimeoutMs = force ? 2000 : FORCE_KILL_TIMEOUT_MS + 2000;
+
+      const overallTimeout = setTimeout(() => {
+        console.error(
+          `[PTY] Session ${sessionId}:${terminal} failed to stop within ${shutdownTimeoutMs}ms. It might be orphaned.`
+        );
+        this.off('exit', onExit);
+        resolve(); // Resolve to prevent blocking shutdown
+      }, shutdownTimeoutMs);
+
       let forceKillTimeout: NodeJS.Timeout | null = null;
 
       // Listen for exit event to know when process has actually terminated
@@ -322,6 +333,7 @@ export class PtyManager extends EventEmitter {
           if (forceKillTimeout) {
             clearTimeout(forceKillTimeout);
           }
+          clearTimeout(overallTimeout);
           this.off('exit', onExit);
           resolve();
         }
