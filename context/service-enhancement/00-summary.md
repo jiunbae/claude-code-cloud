@@ -19,7 +19,7 @@ Claude Code Cloud 서비스의 고도화를 위해 3명의 AI 에이전트가 �
 | 항목 | 현황 |
 |------|------|
 | 코드베이스 | ~9,000 라인 (TypeScript) |
-| 프론트엔드 | Next.js 16 + React 19 |
+| 프론트엔드 | Next.js 16 (canary) + React 19 |
 | 백엔드 | Node.js + WebSocket + node-pty |
 | 데이터베이스 | SQLite (WAL mode) |
 | 배포 | Docker 단일 컨테이너 |

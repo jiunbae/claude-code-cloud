@@ -5,24 +5,11 @@ import { workspaceManager } from '@/server/workspace/WorkspaceManager';
 import { fileSystemManager } from '@/server/files/FileSystemManager';
 import { getAuthContext } from '@/server/auth';
 
-// Validate path to prevent path traversal attacks
-function validatePath(basePath: string, filePath: string): string | null {
-  const fullPath = path.join(basePath, filePath);
-  const normalizedBase = path.resolve(basePath);
-  const normalizedFull = path.resolve(fullPath);
-
-  // Ensure the resolved path is within the base directory
-  if (!normalizedFull.startsWith(normalizedBase + path.sep) && normalizedFull !== normalizedBase) {
-    return null;
-  }
-  return normalizedFull;
-}
-
 type RouteParams = {
   params: Promise<{ id: string }>;
 };
 
-// Helper to get workspace path from session
+// Helper to get workspace path from session with auth check
 async function getWorkspacePath(sessionId: string, userId?: string) {
   const session = sessionStore.getWithWorkspace(sessionId);
 
@@ -44,24 +31,40 @@ async function getWorkspacePath(sessionId: string, userId?: string) {
   return { projectPath, session, workspace };
 }
 
+// Validate path to prevent path traversal attacks (cross-platform)
+function validatePath(basePath: string, filePath: string): string | null {
+  const fullPath = path.join(basePath, filePath);
+  const normalizedBase = path.resolve(basePath);
+  const normalizedFull = path.resolve(fullPath);
+  const relative = path.relative(normalizedBase, normalizedFull);
+
+  // Ensure the resolved path is within the base directory (robust cross-platform check)
+  if (
+    relative.startsWith('..' + path.sep) ||
+    relative === '..' ||
+    path.isAbsolute(relative)
+  ) {
+    return null;
+  }
+  return normalizedFull;
+}
+
 // GET /api/sessions/:id/files - Get file tree
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
-    const session = sessionStore.getWithWorkspace(id);
+    const auth = await getAuthContext(request);
 
-    if (!session) {
-      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+    if (!auth) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    // Use workspace from session (already fetched via getWithWorkspace)
-    const workspace = session.workspace;
-    if (!workspace) {
-      return NextResponse.json({ error: 'Workspace not found for this session' }, { status: 404 });
+    const result = await getWorkspacePath(id, auth.userId);
+    if ('error' in result) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
     }
 
-    // Get actual filesystem path from workspace
-    const projectPath = workspaceManager.getWorkspacePath(workspace.ownerId, workspace.slug);
+    const { projectPath } = result;
 
     const url = new URL(request.url);
     const depth = parseInt(url.searchParams.get('depth') || '3', 10);

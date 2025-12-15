@@ -26,7 +26,7 @@ class WorkspaceStore {
       this._db.pragma('cache_size = -64000');          // 64MB cache (negative = KB)
       this._db.pragma('temp_store = MEMORY');          // Use memory for temp tables
       this._db.pragma('busy_timeout = 5000');          // 5 second timeout for locked database
-      this._db.pragma('mmap_size = 268435456');        // 256MB memory-mapped I/O
+      this._db.pragma('mmap_size = 268435456');        // 256 MiB memory-mapped I/O
 
       this.initSchema();
     }

@@ -62,7 +62,16 @@ export function useCollaboration({
   });
 
   const wsRef = useRef<WebSocket | null>(null);
-  const userIdRef = useRef<string>(generateId());
+  // Use sessionStorage for consistent userId across tabs/refreshes
+  const userIdRef = useRef<string>(
+    typeof window === 'undefined'
+      ? generateId()
+      : globalThis.sessionStorage?.getItem('collabUserId') || (() => {
+          const newId = generateId();
+          globalThis.sessionStorage?.setItem('collabUserId', newId);
+          return newId;
+        })()
+  );
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
