@@ -24,19 +24,23 @@ export function CommandPalette() {
     );
   }, [commands, query]);
 
-  // Group filtered commands by category
+  // Group filtered commands by category (dynamic to support new categories)
   const groupedCommands = useMemo(() => {
-    const groups: Record<string, CommandItem[]> = {
-      session: [],
-      workspace: [],
-      action: [],
-      navigation: [],
-    };
-    filteredCommands.forEach((cmd) => {
-      groups[cmd.category].push(cmd);
-    });
-    return groups;
+    return filteredCommands.reduce(
+      (groups, cmd) => {
+        const category = cmd.category;
+        if (!groups[category]) {
+          groups[category] = [];
+        }
+        groups[category].push(cmd);
+        return groups;
+      },
+      {} as Record<string, CommandItem[]>
+    );
   }, [filteredCommands]);
+
+  // Define category order for consistent rendering
+  const categoryOrder: (keyof typeof categoryLabels)[] = ['session', 'workspace', 'action', 'navigation'];
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -140,8 +144,9 @@ export function CommandPalette() {
             {filteredCommands.length === 0 ? (
               <div className="p-8 text-center text-gray-500">No results found</div>
             ) : (
-              Object.entries(groupedCommands).map(([category, items]) => {
-                if (items.length === 0) return null;
+              categoryOrder.map((category) => {
+                const items = groupedCommands[category];
+                if (!items || items.length === 0) return null;
                 return (
                   <div key={category}>
                     <div className="px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-900/50">
