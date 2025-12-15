@@ -41,10 +41,10 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
       }),
     });
 
-    const result = await response.json();
+    const result = await response.json().catch(() => null);
 
     if (!response.ok) {
-      return NextResponse.json({ error: result.error }, { status: response.status });
+      return NextResponse.json({ error: result?.error || `PTY API request failed with status ${response.status}` }, { status: response.status });
     }
 
     return NextResponse.json({

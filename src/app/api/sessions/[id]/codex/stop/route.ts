@@ -25,14 +25,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       body: JSON.stringify({ force: body.force === true }),
     });
 
-    const result = await response.json();
+    const result = await response.json().catch(() => null);
 
     if (!response.ok) {
       // If codex not running, treat as already stopped
       if (response.status === 400) {
         return NextResponse.json({ success: true, message: 'Codex already stopped' });
       }
-      return NextResponse.json({ error: result.error }, { status: response.status });
+      return NextResponse.json({ error: result?.error || `PTY API request failed with status ${response.status}` }, { status: response.status });
     }
 
     return NextResponse.json({

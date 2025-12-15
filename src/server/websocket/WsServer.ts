@@ -46,7 +46,8 @@ export class WsServer {
         return;
       }
 
-      if (terminal !== 'claude' && terminal !== 'shell' && terminal !== 'codex') {
+      const validTerminalTypes: TerminalKind[] = ['claude', 'shell', 'codex'];
+      if (!validTerminalTypes.includes(terminal)) {
         this.sendMessage(ws, {
           type: 'error',
           code: 'INVALID_TERMINAL',

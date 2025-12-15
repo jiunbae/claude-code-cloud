@@ -165,18 +165,22 @@ export class PtyManager extends EventEmitter {
       };
 
       let command: string | null;
-      if (terminal === 'claude') {
-        command = this.resolveClaudeBinary();
-        if (!command) {
-          throw new Error('Claude CLI not found in PATH (expected `claude`). Install it in the container image.');
-        }
-      } else if (terminal === 'codex') {
-        command = this.resolveCodexBinary();
-        if (!command) {
-          throw new Error('Codex CLI not found in PATH (expected `codex`). Install it in the container image.');
-        }
-      } else {
-        command = this.resolveShellBinary();
+      switch (terminal) {
+        case 'claude':
+          command = this.resolveClaudeBinary();
+          if (!command) {
+            throw new Error('Claude CLI not found in PATH (expected `claude`). Install it in the container image.');
+          }
+          break;
+        case 'codex':
+          command = this.resolveCodexBinary();
+          if (!command) {
+            throw new Error('Codex CLI not found in PATH (expected `codex`). Install it in the container image.');
+          }
+          break;
+        default:
+          command = this.resolveShellBinary();
+          break;
       }
 
       // Claude-specific env/config
