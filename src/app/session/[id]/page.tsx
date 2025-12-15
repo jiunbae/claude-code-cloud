@@ -19,6 +19,19 @@ const Terminal = dynamic(() => import('@/components/Terminal/Terminal'), {
   ),
 });
 
+// Dynamic import for MultiTabTerminal (SSR disabled)
+const MultiTabTerminal = dynamic(
+  () => import('@/components/Terminal/MultiTabTerminal'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex-1 bg-gray-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+      </div>
+    ),
+  }
+);
+
 // Dynamic import for FileExplorer
 const FileExplorer = dynamic(
   () => import('@/components/FileExplorer/FileExplorer'),
@@ -442,7 +455,7 @@ function SessionView() {
           )
         ) : activeTab === 'terminal' ? (
           shellReady ? (
-            <Terminal sessionId={sessionId} terminal="shell" onStatusChange={setTerminalStatus} />
+            <MultiTabTerminal sessionId={sessionId} onStatusChange={setTerminalStatus} />
           ) : shellStarting ? (
             <div className="flex-1 bg-gray-900 flex items-center justify-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
