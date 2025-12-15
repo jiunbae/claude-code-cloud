@@ -325,7 +325,7 @@ export class PtyManager extends EventEmitter {
     }
 
     const session = this.sessions.get(key);
-    if (!session) return;
+    if (!session) return Promise.resolve();
 
     session.status = 'stopping';
 
