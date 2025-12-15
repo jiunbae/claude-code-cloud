@@ -89,12 +89,12 @@ export default function Terminal({
 
     ws.onopen = () => {
       updateStatus('connected');
-      const labelMap: Record<string, string> = {
+      const labelMap: Record<TerminalKind, string> = {
         shell: 'Terminal',
         claude: 'Claude',
         codex: 'Codex',
       };
-      const label = labelMap[terminal] || 'Claude';
+      const label = labelMap[terminal];
       xtermRef.current?.writeln(`\x1b[32m● Connected to ${label}\x1b[0m\n`);
 
       // Send initial resize
@@ -121,12 +121,12 @@ export default function Terminal({
 
           case 'session:status':
             {
-              const statusLabelMap: Record<string, string> = {
+              const statusLabelMap: Record<TerminalKind, string> = {
                 shell: 'Shell',
                 claude: 'Claude Code',
                 codex: 'Codex',
               };
-              const statusLabel = statusLabelMap[terminal] || 'Claude Code';
+              const statusLabel = statusLabelMap[terminal];
               if (message.status === 'running') {
                 xtermRef.current?.writeln(
                   `\x1b[32m● ${statusLabel} started\x1b[0m`
