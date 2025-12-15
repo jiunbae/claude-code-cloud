@@ -96,6 +96,9 @@ importers:
       eslint-plugin-prettier:
         specifier: ^5.5.4
         version: 5.5.4(eslint-config-prettier@10.1.8(eslint@9.39.2(jiti@2.6.1)))(eslint@9.39.2(jiti@2.6.1))(prettier@3.7.4)
+      monaco-editor:
+        specifier: ^0.55.1
+        version: 0.55.1
       prettier:
         specifier: ^3.7.4
         version: 3.7.4
