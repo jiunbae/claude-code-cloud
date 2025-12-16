@@ -4,6 +4,12 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Header } from '@/components/Layout';
 
+// Generate anonymous name
+function generateAnonymousName(): string {
+  const randomNum = Math.floor(1000 + Math.random() * 9000);
+  return `Anonymous ${randomNum}`;
+}
+
 export default function JoinPage() {
   const params = useParams();
   const router = useRouter();
@@ -13,9 +19,11 @@ export default function JoinPage() {
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [validated, setValidated] = useState(false);
+  const [anonymousName] = useState(() => generateAnonymousName());
   const [sessionInfo, setSessionInfo] = useState<{
     sessionId: string;
     permission: 'view' | 'interact';
+    allowAnonymous?: boolean;
   } | null>(null);
 
   // Validate token on mount
@@ -42,8 +50,9 @@ export default function JoinPage() {
     validateToken();
   }, [token]);
 
-  const handleJoin = async () => {
-    if (!sessionInfo || !name.trim()) return;
+  const handleJoin = async (isAnonymousJoin: boolean = false) => {
+    const joinName = isAnonymousJoin ? anonymousName : name.trim();
+    if (!sessionInfo || !joinName) return;
 
     setLoading(true);
     try {
@@ -52,8 +61,9 @@ export default function JoinPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: name.trim(),
+          name: joinName,
           permission: sessionInfo.permission,
+          isAnonymous: isAnonymousJoin,
         }),
       });
 
@@ -69,6 +79,17 @@ export default function JoinPage() {
         `participant:${sessionInfo.sessionId}`,
         JSON.stringify(data)
       );
+
+      // For anonymous participants, also store anonymous info for AuthGuard bypass
+      if (isAnonymousJoin) {
+        sessionStorage.setItem(
+          `anonymous:${sessionInfo.sessionId}`,
+          JSON.stringify({
+            ...data,
+            isAnonymous: true,
+          })
+        );
+      }
 
       // Redirect to session page
       router.push(`/session/${sessionInfo.sessionId}`);
@@ -138,39 +159,71 @@ export default function JoinPage() {
           </div>
 
           <div className="bg-gray-800 rounded-lg p-6 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Your Name
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Enter your name"
-                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
-                autoFocus
-              />
-            </div>
+            {sessionInfo?.allowAnonymous ? (
+              <>
+                {/* Anonymous viewer mode */}
+                <div className="text-center">
+                  <div className="px-4 py-3 bg-gray-700 rounded-lg mb-4">
+                    <p className="text-sm text-gray-400 mb-1">You will join as:</p>
+                    <p className="text-lg font-medium text-white">{anonymousName}</p>
+                  </div>
 
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-              <div
-                className={`px-2 py-1 rounded ${
-                  sessionInfo?.permission === 'interact'
-                    ? 'bg-green-900/50 text-green-400'
-                    : 'bg-blue-900/50 text-blue-400'
-                }`}
-              >
-                {sessionInfo?.permission === 'interact' ? 'Can interact' : 'View only'}
-              </div>
-            </div>
+                  <div className="flex items-center justify-center gap-2 text-sm text-gray-400 mb-4">
+                    <div className="px-2 py-1 rounded bg-yellow-900/50 text-yellow-400">
+                      Anonymous Viewer
+                    </div>
+                    <div className="px-2 py-1 rounded bg-blue-900/50 text-blue-400">
+                      View only
+                    </div>
+                  </div>
 
-            <button
-              onClick={handleJoin}
-              disabled={!name.trim() || loading}
-              className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Joining...' : 'Join Session'}
-            </button>
+                  <button
+                    onClick={() => handleJoin(true)}
+                    disabled={loading}
+                    className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? 'Joining...' : 'Join as Viewer'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Regular join mode */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Your Name
+                  </label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Enter your name"
+                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 text-sm text-gray-400">
+                  <div
+                    className={`px-2 py-1 rounded ${
+                      sessionInfo?.permission === 'interact'
+                        ? 'bg-green-900/50 text-green-400'
+                        : 'bg-blue-900/50 text-blue-400'
+                    }`}
+                  >
+                    {sessionInfo?.permission === 'interact' ? 'Can interact' : 'View only'}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => handleJoin(false)}
+                  disabled={!name.trim() || loading}
+                  className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Joining...' : 'Join Session'}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

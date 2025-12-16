@@ -22,9 +22,10 @@ interface TerminalTab {
 interface MultiTabTerminalProps {
   sessionId: string;
   onStatusChange?: (status: 'connecting' | 'connected' | 'disconnected' | 'error') => void;
+  readOnly?: boolean;
 }
 
-export default function MultiTabTerminal({ sessionId, onStatusChange }: MultiTabTerminalProps) {
+export default function MultiTabTerminal({ sessionId, onStatusChange, readOnly = false }: MultiTabTerminalProps) {
   const [tabs, setTabs] = useState<TerminalTab[]>([
     { id: 'shell-1', name: 'Terminal 1', type: 'shell' },
   ]);
@@ -110,6 +111,7 @@ export default function MultiTabTerminal({ sessionId, onStatusChange }: MultiTab
               sessionId={sessionId}
               terminal="shell"
               onStatusChange={tab.id === activeTabId ? onStatusChange : undefined}
+              readOnly={readOnly}
             />
           </div>
         ))}

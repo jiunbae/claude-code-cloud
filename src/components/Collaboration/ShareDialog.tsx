@@ -10,6 +10,7 @@ interface ShareDialogProps {
 
 export default function ShareDialog({ isOpen, onClose, sessionId }: ShareDialogProps) {
   const [permission, setPermission] = useState<'view' | 'interact'>('view');
+  const [allowAnonymous, setAllowAnonymous] = useState(false);
   const [expiresInHours, setExpiresInHours] = useState<number | undefined>(24);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -25,7 +26,8 @@ export default function ShareDialog({ isOpen, onClose, sessionId }: ShareDialogP
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          permission,
+          permission: allowAnonymous ? 'view' : permission,
+          allowAnonymous,
           expiresInHours: expiresInHours || undefined,
         }),
       });
@@ -42,7 +44,7 @@ export default function ShareDialog({ isOpen, onClose, sessionId }: ShareDialogP
     } finally {
       setLoading(false);
     }
-  }, [sessionId, permission, expiresInHours]);
+  }, [sessionId, permission, allowAnonymous, expiresInHours]);
 
   const handleCopy = useCallback(async () => {
     if (!shareUrl) return;
@@ -60,6 +62,8 @@ export default function ShareDialog({ isOpen, onClose, sessionId }: ShareDialogP
     setShareUrl(null);
     setError(null);
     setCopied(false);
+    setAllowAnonymous(false);
+    setPermission('view');
     onClose();
   }, [onClose]);
 
@@ -112,11 +116,19 @@ export default function ShareDialog({ isOpen, onClose, sessionId }: ShareDialogP
             </div>
 
             <p className="text-sm text-gray-400">
-              Anyone with this link can{' '}
-              <span className="text-white">
-                {permission === 'interact' ? 'interact with' : 'view'}
-              </span>{' '}
-              this session
+              {allowAnonymous ? (
+                <>
+                  <span className="text-yellow-400">Anonymous users</span> can view this session without logging in
+                </>
+              ) : (
+                <>
+                  Anyone with this link can{' '}
+                  <span className="text-white">
+                    {permission === 'interact' ? 'interact with' : 'view'}
+                  </span>{' '}
+                  this session
+                </>
+              )}
               {expiresInHours && (
                 <>
                   {' '}for{' '}
@@ -142,25 +154,61 @@ export default function ShareDialog({ isOpen, onClose, sessionId }: ShareDialogP
               <div className="flex gap-2">
                 <button
                   onClick={() => setPermission('view')}
+                  disabled={allowAnonymous}
                   className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium ${
-                    permission === 'view'
+                    permission === 'view' || allowAnonymous
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
+                  } ${allowAnonymous ? 'opacity-75 cursor-not-allowed' : ''}`}
                 >
                   View Only
                 </button>
                 <button
                   onClick={() => setPermission('interact')}
+                  disabled={allowAnonymous}
                   className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium ${
-                    permission === 'interact'
+                    permission === 'interact' && !allowAnonymous
                       ? 'bg-green-600 text-white'
                       : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
+                  } ${allowAnonymous ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   Can Interact
                 </button>
               </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300">
+                    Allow Anonymous Viewers
+                  </label>
+                  <p className="text-xs text-gray-500">
+                    Anyone can view without logging in
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAllowAnonymous(!allowAnonymous);
+                    if (!allowAnonymous) setPermission('view');
+                  }}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${
+                    allowAnonymous ? 'bg-blue-600' : 'bg-gray-600'
+                  }`}
+                >
+                  <div
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
+                      allowAnonymous ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+              {allowAnonymous && (
+                <p className="text-xs text-yellow-500 mt-2">
+                  Anonymous viewers are limited to View Only permission
+                </p>
+              )}
             </div>
 
             <div>

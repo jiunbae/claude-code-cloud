@@ -3,6 +3,7 @@ export interface ShareToken {
   sessionId: string;
   token: string;
   permission: 'view' | 'interact';
+  allowAnonymous: boolean;
   createdAt: Date;
   expiresAt: Date | null;
   maxUses: number | null;
@@ -15,6 +16,7 @@ export interface Participant {
   name: string;
   color: string;
   permission: 'owner' | 'view' | 'interact';
+  isAnonymous: boolean;
   joinedAt: Date;
   lastSeenAt: Date;
   cursorPosition?: CursorPosition;
@@ -34,6 +36,7 @@ export interface PresenceUpdate {
 export interface CreateShareTokenRequest {
   sessionId: string;
   permission: 'view' | 'interact';
+  allowAnonymous?: boolean;
   expiresInHours?: number;
   maxUses?: number;
 }

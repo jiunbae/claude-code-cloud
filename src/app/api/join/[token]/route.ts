@@ -27,6 +27,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({
       sessionId: result.sessionId,
       permission: result.permission,
+      allowAnonymous: result.allowAnonymous,
     });
   } catch (error) {
     console.error('Join API error:', error);

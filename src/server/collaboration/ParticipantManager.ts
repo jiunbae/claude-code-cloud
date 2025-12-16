@@ -26,7 +26,8 @@ class ParticipantManager {
   join(
     sessionId: string,
     name: string,
-    permission: 'owner' | 'view' | 'interact'
+    permission: 'owner' | 'view' | 'interact',
+    isAnonymous: boolean = false
   ): Participant {
     const id = nanoid(8);
     const color = this.getNextColor(sessionId);
@@ -38,6 +39,7 @@ class ParticipantManager {
       name,
       color,
       permission,
+      isAnonymous,
       joinedAt: now,
       lastSeenAt: now,
     };

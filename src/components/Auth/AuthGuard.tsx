@@ -1,26 +1,41 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 
 interface AuthGuardProps {
   children: React.ReactNode;
   fallback?: React.ReactNode;
+  sessionId?: string;
 }
 
-export default function AuthGuard({ children, fallback }: AuthGuardProps) {
+export default function AuthGuard({ children, fallback, sessionId }: AuthGuardProps) {
   const router = useRouter();
   const { isLoading, isAuthenticated } = useAuth();
+  const [isAnonymousParticipant, setIsAnonymousParticipant] = useState<boolean | null>(null);
+
+  // Check for anonymous participant info in sessionStorage
+  useEffect(() => {
+    if (sessionId && typeof window !== 'undefined') {
+      const anonymousInfo = sessionStorage.getItem(`anonymous:${sessionId}`);
+      setIsAnonymousParticipant(!!anonymousInfo);
+    } else {
+      setIsAnonymousParticipant(false);
+    }
+  }, [sessionId]);
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    // Wait for anonymous check to complete
+    if (isAnonymousParticipant === null) return;
+
+    if (!isLoading && !isAuthenticated && !isAnonymousParticipant) {
       router.replace('/login');
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isLoading, isAuthenticated, isAnonymousParticipant, router]);
 
   // Show loading state
-  if (isLoading) {
+  if (isLoading || isAnonymousParticipant === null) {
     return (
       fallback || (
         <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-900 to-gray-950 flex items-center justify-center">
@@ -34,6 +49,11 @@ export default function AuthGuard({ children, fallback }: AuthGuardProps) {
         </div>
       )
     );
+  }
+
+  // Anonymous participant - allow access
+  if (isAnonymousParticipant) {
+    return <>{children}</>;
   }
 
   // Not authenticated - will redirect

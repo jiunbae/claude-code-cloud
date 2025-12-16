@@ -49,6 +49,13 @@ const FileExplorer = dynamic(
 
 type ViewTab = 'claude' | 'codex' | 'terminal' | 'files';
 
+interface AnonymousInfo {
+  participantId: string;
+  name: string;
+  permission: 'view' | 'interact';
+  isAnonymous: boolean;
+}
+
 function SessionView() {
   const params = useParams();
   const router = useRouter();
@@ -67,12 +74,30 @@ function SessionView() {
   const [codexStarting, setCodexStarting] = useState(false);
   const [codexReady, setCodexReady] = useState(false);
   const [codexError, setCodexError] = useState<string | null>(null);
+  const [anonymousInfo, setAnonymousInfo] = useState<AnonymousInfo | null>(null);
+
+  // Check for anonymous participant info
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem(`anonymous:${sessionId}`);
+      if (stored) {
+        try {
+          setAnonymousInfo(JSON.parse(stored));
+        } catch {
+          // Invalid JSON, ignore
+        }
+      }
+    }
+  }, [sessionId]);
 
   // Auth and collaboration
   const { user } = useAuth();
+  const isAnonymousViewer = !!anonymousInfo?.isAnonymous;
+  const effectiveUserName = isAnonymousViewer ? anonymousInfo.name : (user?.username || 'Anonymous');
+
   const collaboration = useCollaboration({
     sessionId,
-    userName: user?.username || 'Anonymous',
+    userName: effectiveUserName,
     enabled: !!session,
   });
 
@@ -259,7 +284,12 @@ function SessionView() {
               sessionId={sessionId}
               onShareClick={() => setIsShareOpen(true)}
             />
-            {isRunning ? (
+            {isAnonymousViewer && (
+              <div className="px-2 py-1 bg-yellow-900/50 text-yellow-400 text-xs rounded-lg">
+                Viewing as {anonymousInfo?.name}
+              </div>
+            )}
+            {!isAnonymousViewer && isRunning ? (
               <button
                 onClick={handleStop}
                 disabled={isStopping}
@@ -282,7 +312,7 @@ function SessionView() {
                   </>
                 )}
               </button>
-            ) : (
+            ) : !isAnonymousViewer ? (
               <button
                 onClick={handleStart}
                 disabled={isStarting}
@@ -305,7 +335,7 @@ function SessionView() {
                   </>
                 )}
               </button>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
@@ -406,7 +436,7 @@ function SessionView() {
       <div className="flex-1 flex flex-col overflow-hidden min-h-0">
         {activeTab === 'claude' ? (
           isRunning || isStarting ? (
-            <Terminal sessionId={sessionId} terminal="claude" onStatusChange={setTerminalStatus} />
+            <Terminal sessionId={sessionId} terminal="claude" onStatusChange={setTerminalStatus} readOnly={isAnonymousViewer} />
           ) : (
             <div className="flex-1 bg-[#1a1b26] flex items-center justify-center">
               <div className="text-center">
@@ -439,7 +469,7 @@ function SessionView() {
           )
         ) : activeTab === 'codex' ? (
           codexReady ? (
-            <Terminal sessionId={sessionId} terminal="codex" onStatusChange={setTerminalStatus} />
+            <Terminal sessionId={sessionId} terminal="codex" onStatusChange={setTerminalStatus} readOnly={isAnonymousViewer} />
           ) : codexStarting ? (
             <div className="flex-1 bg-gray-900 flex items-center justify-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
@@ -478,7 +508,7 @@ function SessionView() {
           )
         ) : activeTab === 'terminal' ? (
           shellReady ? (
-            <MultiTabTerminal sessionId={sessionId} onStatusChange={setTerminalStatus} />
+            <MultiTabTerminal sessionId={sessionId} onStatusChange={setTerminalStatus} readOnly={isAnonymousViewer} />
           ) : shellStarting ? (
             <div className="flex-1 bg-gray-900 flex items-center justify-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
@@ -530,8 +560,11 @@ function SessionView() {
 }
 
 export default function SessionPage() {
+  const params = useParams();
+  const sessionId = params.id as string;
+
   return (
-    <AuthGuard>
+    <AuthGuard sessionId={sessionId}>
       <SessionView />
     </AuthGuard>
   );
