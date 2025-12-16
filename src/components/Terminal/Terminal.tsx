@@ -407,7 +407,7 @@ export default function Terminal({
   return (
     <div
       ref={containerRef}
-      className={`flex flex-col ${isFullscreen ? '' : 'h-full'}`}
+      className={`flex flex-col ${isFullscreen ? '' : 'flex-1 h-full min-h-0'}`}
       style={containerStyle}
     >
       {/* Terminal Header - Mobile Optimized */}
