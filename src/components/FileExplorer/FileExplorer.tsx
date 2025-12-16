@@ -18,10 +18,11 @@ const CodeEditor = dynamic(() => import('./CodeEditor'), {
 
 interface FileExplorerProps {
   sessionId: string;
+  shareToken?: string | null;
   onFileChange?: (event: { type: string; path: string }) => void;
 }
 
-export default function FileExplorer({ sessionId }: FileExplorerProps) {
+export default function FileExplorer({ sessionId, shareToken }: FileExplorerProps) {
   const [tree, setTree] = useState<FileNode | null>(null);
   const [selectedFile, setSelectedFile] = useState<FileContent | null>(null);
   const [loading, setLoading] = useState(true);
@@ -134,14 +135,20 @@ export default function FileExplorer({ sessionId }: FileExplorerProps) {
 
   // Download all files as ZIP
   const handleDownloadAll = useCallback(() => {
-    const url = `/api/sessions/${sessionId}/files/download?zip=true`;
+    const params = new URLSearchParams({ zip: 'true' });
+    if (shareToken) params.set('token', shareToken);
+
+    const url = `/api/sessions/${sessionId}/files/download?${params}`;
     const link = document.createElement('a');
     link.href = url;
     link.download = 'project.zip';
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
-  }, [sessionId]);
+    // Delay cleanup to ensure download starts
+    setTimeout(() => {
+      document.body.removeChild(link);
+    }, 100);
+  }, [sessionId, shareToken]);
 
   if (loading && !tree) {
     return (
@@ -235,6 +242,7 @@ export default function FileExplorer({ sessionId }: FileExplorerProps) {
                 onFileSelect={handleFileSelect}
                 selectedPath={selectedPath || undefined}
                 sessionId={sessionId}
+                shareToken={shareToken}
                 rootPath={tree.path}
               />
             ) : null}
@@ -302,6 +310,7 @@ export default function FileExplorer({ sessionId }: FileExplorerProps) {
               loading={fileLoading}
               error={selectedFile ? null : error}
               sessionId={sessionId}
+              shareToken={shareToken}
             />
           </>
         )}

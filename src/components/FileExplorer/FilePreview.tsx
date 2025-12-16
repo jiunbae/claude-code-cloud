@@ -26,7 +26,10 @@ export default function FilePreview({ file, loading, error, sessionId, shareToke
     link.download = file.path.split('/').pop() || 'download';
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    // Delay cleanup to ensure download starts
+    setTimeout(() => {
+      document.body.removeChild(link);
+    }, 100);
   }, [file, sessionId, shareToken]);
 
   const language = useMemo(() => {

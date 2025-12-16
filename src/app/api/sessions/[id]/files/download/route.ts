@@ -111,6 +111,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
+// Generate Content-Disposition header with ASCII fallback and UTF-8 encoding
+function getContentDisposition(fileName: string): string {
+  // ASCII fallback: replace non-ASCII chars with underscore
+  const asciiFallback = fileName.replace(/[^\x20-\x7E]/g, '_');
+  const encodedFileName = encodeURIComponent(fileName);
+  return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodedFileName}`;
+}
+
 // Stream single file download
 async function streamFileDownload(
   filePath: string,
@@ -121,7 +129,7 @@ async function streamFileDownload(
 
   const headers = new Headers({
     'Content-Type': mimeType,
-    'Content-Disposition': `attachment; filename="${encodeURIComponent(fileName)}"`,
+    'Content-Disposition': getContentDisposition(fileName),
     'Content-Length': buffer.length.toString(),
   });
 
@@ -155,7 +163,7 @@ async function streamZipDownload(
 
   const headers = new Headers({
     'Content-Type': 'application/zip',
-    'Content-Disposition': `attachment; filename="${encodeURIComponent(dirName)}.zip"`,
+    'Content-Disposition': getContentDisposition(`${dirName}.zip`),
   });
 
   // Convert Node.js stream to Web ReadableStream

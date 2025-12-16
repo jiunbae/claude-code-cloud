@@ -92,7 +92,10 @@ export default function FileTree({
     link.download = node.type === 'directory' ? `${node.name}.zip` : node.name;
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    // Delay cleanup to ensure download starts
+    setTimeout(() => {
+      document.body.removeChild(link);
+    }, 100);
   }, [sessionId, shareToken, node.path, node.name, node.type, rootPath]);
 
   const isSelected = selectedPath === node.path;
