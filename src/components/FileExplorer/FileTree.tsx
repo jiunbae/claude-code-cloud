@@ -8,6 +8,9 @@ interface FileTreeProps {
   onFileSelect: (path: string) => void;
   selectedPath?: string;
   level?: number;
+  sessionId?: string;
+  shareToken?: string | null;
+  rootPath?: string;
 }
 
 const FileIcon = ({ type, name }: { type: 'file' | 'directory'; name: string }) => {
@@ -48,7 +51,15 @@ const FileIcon = ({ type, name }: { type: 'file' | 'directory'; name: string }) 
   );
 };
 
-export default function FileTree({ node, onFileSelect, selectedPath, level = 0 }: FileTreeProps) {
+export default function FileTree({
+  node,
+  onFileSelect,
+  selectedPath,
+  level = 0,
+  sessionId,
+  shareToken,
+  rootPath,
+}: FileTreeProps) {
   const [expanded, setExpanded] = useState(level < 2);
 
   const handleToggle = useCallback((e: React.MouseEvent) => {
@@ -62,13 +73,35 @@ export default function FileTree({ node, onFileSelect, selectedPath, level = 0 }
     onFileSelect(node.path);
   }, [node.path, onFileSelect]);
 
+  const handleDownload = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!sessionId) return;
+
+    // Calculate relative path from root
+    const effectiveRoot = rootPath || '';
+    const relativePath = effectiveRoot ? node.path.replace(effectiveRoot + '/', '') : node.path;
+
+    const params = new URLSearchParams({ path: relativePath });
+    if (shareToken) params.set('token', shareToken);
+    if (node.type === 'directory') params.set('zip', 'true');
+
+    const url = `/api/sessions/${sessionId}/files/download?${params}`;
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = node.type === 'directory' ? `${node.name}.zip` : node.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [sessionId, shareToken, node.path, node.name, node.type, rootPath]);
+
   const isSelected = selectedPath === node.path;
   const hasChildren = node.children && node.children.length > 0;
 
   return (
     <div>
       <div
-        className={`flex items-center gap-1.5 px-2 py-2 sm:py-1.5 cursor-pointer rounded-lg mx-1 text-sm transition-colors active:bg-gray-600/50 hover:bg-gray-700/50 ${
+        className={`group flex items-center gap-1.5 px-2 py-2 sm:py-1.5 cursor-pointer rounded-lg mx-1 text-sm transition-colors active:bg-gray-600/50 hover:bg-gray-700/50 ${
           isSelected ? 'bg-blue-900/50 text-blue-300' : 'text-gray-300'
         }`}
         style={{ paddingLeft: `${level * 12 + 8}px` }}
@@ -95,6 +128,22 @@ export default function FileTree({ node, onFileSelect, selectedPath, level = 0 }
         {node.type === 'file' && <span className="w-5" />}
         <FileIcon type={node.type} name={node.name} />
         <span className="truncate flex-1">{node.name}</span>
+        {sessionId && (
+          <button
+            onClick={handleDownload}
+            className="opacity-0 group-hover:opacity-100 p-1 text-gray-500 hover:text-gray-300 hover:bg-gray-600 rounded transition-all"
+            title={node.type === 'directory' ? 'Download as ZIP' : 'Download'}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+              />
+            </svg>
+          </button>
+        )}
       </div>
 
       {node.type === 'directory' && expanded && hasChildren && (
@@ -106,6 +155,9 @@ export default function FileTree({ node, onFileSelect, selectedPath, level = 0 }
               onFileSelect={onFileSelect}
               selectedPath={selectedPath}
               level={level + 1}
+              sessionId={sessionId}
+              shareToken={shareToken}
+              rootPath={rootPath}
             />
           ))}
         </div>
