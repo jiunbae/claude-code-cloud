@@ -5,7 +5,7 @@ import { Sidebar } from './Sidebar';
 import { CommandPalette } from './CommandPalette';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useSidebarStore } from '@/stores/sidebarStore';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuth } from '@/hooks/useAuth';
 import { APP_NAME } from '@/config';
 
 interface AppLayoutProps {
@@ -15,9 +15,10 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   useKeyboardShortcuts();
   const { setMobileOpen } = useSidebarStore();
-  const { isAuthenticated, isLoading } = useAuthStore();
+  // Use useAuth hook to ensure auth state is initialized on app load
+  const { isAuthenticated, isLoading } = useAuth();
 
-  // Show sidebar and mobile header only when authenticated
+  // Show sidebar and mobile header only when authenticated and not loading
   const showSidebar = isAuthenticated && !isLoading;
 
   return (

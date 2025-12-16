@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSidebarStore } from '@/stores/sidebarStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useSession } from '@/hooks/useSession';
+import { useAuth } from '@/hooks/useAuth';
 import { SessionGroup } from './SessionGroup';
 import { APP_NAME } from '@/config';
 import type { Session } from '@/types';
@@ -23,6 +24,7 @@ export function Sidebar() {
 
   const { sessions, setSessions, updateSession } = useSessionStore();
   const { getSessions, startSession, stopSession } = useSession();
+  const { user, logout } = useAuth();
 
   // Fetch sessions on mount and when page becomes visible
   // TODO: Replace with WebSocket push for real-time session status updates
@@ -210,27 +212,95 @@ export function Sidebar() {
       </div>
 
       {/* Footer */}
-      {!isCollapsed && (
-        <div className="p-3 border-t border-gray-700">
-          <button
-            onClick={() => {
-              router.push('/');
-              setMobileOpen(false);
-            }}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-              />
-            </svg>
-            Dashboard
-          </button>
+      <div className="border-t border-gray-700">
+        {/* Navigation */}
+        {!isCollapsed && (
+          <div className="p-3 space-y-1">
+            <button
+              onClick={() => {
+                router.push('/');
+                setMobileOpen(false);
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                />
+              </svg>
+              Dashboard
+            </button>
+            <a
+              href="https://github.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0012 2z" />
+              </svg>
+              GitHub
+            </a>
+          </div>
+        )}
+
+        {/* User section */}
+        <div className={`p-3 border-t border-gray-700 ${isCollapsed ? 'flex justify-center' : ''}`}>
+          {user ? (
+            <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
+              {/* User avatar */}
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
+                {user.username
+                  .split(/[\s_-]/)
+                  .map((part) => part[0])
+                  .join('')
+                  .toUpperCase()
+                  .slice(0, 2)}
+              </div>
+              {!isCollapsed && (
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white truncate">{user.username}</p>
+                  <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                </div>
+              )}
+              {!isCollapsed && (
+                <button
+                  onClick={logout}
+                  className="p-2 rounded-lg text-gray-400 hover:text-red-400 hover:bg-gray-700 transition-colors"
+                  title="Sign out"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                    />
+                  </svg>
+                </button>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={() => router.push('/login')}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-gray-700 transition-colors ${isCollapsed ? 'justify-center' : 'w-full'}`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
+                />
+              </svg>
+              {!isCollapsed && 'Sign In'}
+            </button>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 
