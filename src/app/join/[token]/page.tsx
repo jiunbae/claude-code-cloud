@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Header } from '@/components/Layout';
 
-// Generate anonymous name
+// Generate anonymous name with 6-digit ID for better uniqueness (900,000 combinations)
 function generateAnonymousName(): string {
-  const randomNum = Math.floor(1000 + Math.random() * 9000);
+  const randomNum = Math.floor(100000 + Math.random() * 900000);
   return `Anonymous ${randomNum}`;
 }
 

@@ -93,7 +93,9 @@ function SessionView() {
   // Auth and collaboration
   const { user } = useAuth();
   const isAnonymousViewer = !!anonymousInfo?.isAnonymous;
-  const effectiveUserName = isAnonymousViewer ? anonymousInfo.name : (user?.username || 'Anonymous');
+  const effectiveUserName = isAnonymousViewer
+    ? anonymousInfo.name
+    : (user?.username || user?.email || 'User');
 
   const collaboration = useCollaboration({
     sessionId,

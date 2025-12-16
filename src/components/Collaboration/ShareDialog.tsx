@@ -159,7 +159,7 @@ export default function ShareDialog({ isOpen, onClose, sessionId }: ShareDialogP
                     permission === 'view' || allowAnonymous
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  } ${allowAnonymous ? 'opacity-75 cursor-not-allowed' : ''}`}
+                  } ${allowAnonymous ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   View Only
                 </button>

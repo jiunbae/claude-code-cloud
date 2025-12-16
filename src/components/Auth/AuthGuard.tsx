@@ -16,6 +16,9 @@ export default function AuthGuard({ children, fallback, sessionId }: AuthGuardPr
   const [isAnonymousParticipant, setIsAnonymousParticipant] = useState<boolean | null>(null);
 
   // Check for anonymous participant info in sessionStorage
+  // Security Note: This client-side check allows view-only access. The risk is acceptable
+  // because anonymous users are restricted to read-only operations (no terminal input).
+  // For enhanced security, consider adding server-side participant validation in future.
   useEffect(() => {
     if (sessionId && typeof window !== 'undefined') {
       const anonymousInfo = sessionStorage.getItem(`anonymous:${sessionId}`);

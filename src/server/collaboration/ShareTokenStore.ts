@@ -50,10 +50,10 @@ class ShareTokenStore {
     `);
 
     // Migration: Add allow_anonymous column if it doesn't exist
-    try {
+    const columns = this._db!.prepare('PRAGMA table_info(share_tokens)').all() as { name: string }[];
+    const hasAllowAnonymous = columns.some((col) => col.name === 'allow_anonymous');
+    if (!hasAllowAnonymous) {
       this._db!.exec(`ALTER TABLE share_tokens ADD COLUMN allow_anonymous INTEGER NOT NULL DEFAULT 0`);
-    } catch {
-      // Column already exists, ignore error
     }
   }
 
