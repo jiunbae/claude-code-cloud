@@ -159,7 +159,7 @@ function Dashboard() {
   const error = sessionError || workspaceError;
 
   return (
-    <div className="h-full overflow-auto bg-gradient-to-b from-gray-900 via-gray-900 to-gray-950 text-white">
+    <div className="h-full overflow-auto bg-gray-900 text-white">
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-5xl">
         {/* Tabs - Sessions first */}
         <div className="flex items-center gap-1 mb-6 border-b border-gray-700/50">
