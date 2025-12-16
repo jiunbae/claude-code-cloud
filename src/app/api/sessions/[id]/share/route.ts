@@ -23,6 +23,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const sanitizedTokens = tokens.map((t) => ({
       id: t.id,
       permission: t.permission,
+      allowAnonymous: t.allowAnonymous,
       createdAt: t.createdAt,
       expiresAt: t.expiresAt,
       maxUses: t.maxUses,
@@ -48,9 +49,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const body = await request.json();
 
+    // If allowAnonymous is true, force permission to 'view'
+    const allowAnonymous = body.allowAnonymous || false;
+    const permission = allowAnonymous ? 'view' : (body.permission || 'view');
+
     const tokenRequest: CreateShareTokenRequest = {
       sessionId: id,
-      permission: body.permission || 'view',
+      permission,
+      allowAnonymous,
       expiresInHours: body.expiresInHours,
       maxUses: body.maxUses,
     };
@@ -67,6 +73,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       token: shareToken.token,
       shareUrl,
       permission: shareToken.permission,
+      allowAnonymous: shareToken.allowAnonymous,
       expiresAt: shareToken.expiresAt,
       maxUses: shareToken.maxUses,
     });

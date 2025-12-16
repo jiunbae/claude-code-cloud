@@ -34,6 +34,7 @@ class ShareTokenStore {
         session_id TEXT NOT NULL,
         token TEXT UNIQUE NOT NULL,
         permission TEXT NOT NULL DEFAULT 'view',
+        allow_anonymous INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL,
         expires_at TEXT,
         max_uses INTEGER,
@@ -47,12 +48,23 @@ class ShareTokenStore {
       CREATE INDEX IF NOT EXISTS idx_share_tokens_token
         ON share_tokens(token);
     `);
+
+    // Migration: Add allow_anonymous column if it doesn't exist
+    const columns = this._db!.prepare('PRAGMA table_info(share_tokens)').all() as { name: string }[];
+    const hasAllowAnonymous = columns.some((col) => col.name === 'allow_anonymous');
+    if (!hasAllowAnonymous) {
+      this._db!.exec(`ALTER TABLE share_tokens ADD COLUMN allow_anonymous INTEGER NOT NULL DEFAULT 0`);
+    }
   }
 
   create(request: CreateShareTokenRequest): ShareToken {
     const id = nanoid(12);
     const token = this.generateToken();
     const now = new Date();
+
+    // If allowAnonymous is true, force permission to 'view'
+    const permission = request.allowAnonymous ? 'view' : request.permission;
+    const allowAnonymous = request.allowAnonymous || false;
 
     let expiresAt: Date | null = null;
     if (request.expiresInHours) {
@@ -61,16 +73,17 @@ class ShareTokenStore {
 
     const stmt = this.db.prepare(`
       INSERT INTO share_tokens (
-        id, session_id, token, permission,
+        id, session_id, token, permission, allow_anonymous,
         created_at, expires_at, max_uses, use_count
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
     `);
 
     stmt.run(
       id,
       request.sessionId,
       token,
-      request.permission,
+      permission,
+      allowAnonymous ? 1 : 0,
       now.toISOString(),
       expiresAt?.toISOString() || null,
       request.maxUses || null
@@ -120,7 +133,7 @@ class ShareTokenStore {
   }
 
   // Validate token and return permission if valid
-  validateToken(token: string): { valid: boolean; sessionId?: string; permission?: 'view' | 'interact' } {
+  validateToken(token: string): { valid: boolean; sessionId?: string; permission?: 'view' | 'interact'; allowAnonymous?: boolean } {
     const shareToken = this.getByToken(token);
 
     if (!shareToken) {
@@ -141,6 +154,7 @@ class ShareTokenStore {
       valid: true,
       sessionId: shareToken.sessionId,
       permission: shareToken.permission,
+      allowAnonymous: shareToken.allowAnonymous,
     };
   }
 
@@ -163,6 +177,7 @@ class ShareTokenStore {
       sessionId: row.session_id,
       token: row.token,
       permission: row.permission as 'view' | 'interact',
+      allowAnonymous: row.allow_anonymous === 1,
       createdAt: new Date(row.created_at),
       expiresAt: row.expires_at ? new Date(row.expires_at) : null,
       maxUses: row.max_uses,
@@ -176,6 +191,7 @@ interface ShareTokenRow {
   session_id: string;
   token: string;
   permission: string;
+  allow_anonymous: number;
   created_at: string;
   expires_at: string | null;
   max_uses: number | null;

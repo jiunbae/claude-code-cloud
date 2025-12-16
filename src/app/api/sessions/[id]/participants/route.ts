@@ -25,6 +25,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         name: p.name,
         color: p.color,
         permission: p.permission,
+        isAnonymous: p.isAnonymous,
         joinedAt: p.joinedAt,
         lastSeenAt: p.lastSeenAt,
         cursorPosition: p.cursorPosition,
@@ -49,14 +50,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const body = await request.json();
     const name = body.name || 'Anonymous';
     const permission = body.permission || 'view';
+    const isAnonymous = body.isAnonymous || false;
 
-    const participant = participantManager.join(id, name, permission);
+    const participant = participantManager.join(id, name, permission, isAnonymous);
 
     return NextResponse.json({
       participantId: participant.id,
       name: participant.name,
       color: participant.color,
       permission: participant.permission,
+      isAnonymous: participant.isAnonymous,
     });
   } catch (error) {
     console.error('Participants API error:', error);
