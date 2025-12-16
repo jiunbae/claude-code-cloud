@@ -100,11 +100,11 @@ export default function MultiTabTerminal({ sessionId, onStatusChange }: MultiTab
       </div>
 
       {/* Terminal Content - render all tabs but only show active */}
-      <div className="flex-1 relative overflow-hidden">
+      <div className="flex-1 relative overflow-hidden min-h-0">
         {tabs.map((tab) => (
           <div
             key={tab.id}
-            className={`absolute inset-0 ${tab.id === activeTabId ? 'block' : 'hidden'}`}
+            className={`absolute inset-0 flex flex-col ${tab.id === activeTabId ? '' : 'hidden'}`}
           >
             <Terminal
               sessionId={sessionId}
