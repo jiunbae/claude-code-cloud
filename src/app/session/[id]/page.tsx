@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { Header } from '@/components/Layout';
+import Link from 'next/link';
 import { ShareDialog, ParticipantList, Chat, PresenceIndicator } from '@/components/Collaboration';
 import { AuthGuard } from '@/components/Auth';
 import { useSession } from '@/hooks/useSession';
@@ -180,7 +180,7 @@ function SessionView() {
 
   if (loading && !session) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="h-full bg-gray-900 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
       </div>
     );
@@ -188,25 +188,34 @@ function SessionView() {
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white">
-        <Header />
-        <div className="container mx-auto px-4 py-8 text-center">
-          <h2 className="text-2xl font-bold mb-4">Session not found</h2>
-          <p className="text-gray-400 mb-4">The session you&apos;re looking for doesn&apos;t exist.</p>
-          <button
-            onClick={() => router.push('/')}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
-          >
-            Back to Sessions
-          </button>
-        </div>
+      <div className="h-full bg-gray-900 text-white flex flex-col items-center justify-center">
+        <h2 className="text-2xl font-bold mb-4">Session not found</h2>
+        <p className="text-gray-400 mb-4">The session you&apos;re looking for doesn&apos;t exist.</p>
+        <button
+          onClick={() => router.push('/')}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+        >
+          Back to Sessions
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex flex-col">
-      <Header title={session.name} showBackButton />
+    <div className="h-full bg-gray-900 text-white flex flex-col">
+      {/* Session Header Bar */}
+      <div className="flex items-center gap-2 px-3 py-2 bg-gray-800 border-b border-gray-700">
+        <Link
+          href="/"
+          className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+          title="Back to Dashboard"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </Link>
+        <h1 className="text-sm font-medium text-white truncate">{session.name}</h1>
+      </div>
 
       {/* Session Info Bar - Responsive */}
       <div className="bg-gray-800/80 backdrop-blur border-b border-gray-700/50 px-3 sm:px-4 py-2 sm:py-3">
