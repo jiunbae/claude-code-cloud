@@ -18,10 +18,11 @@ const CodeEditor = dynamic(() => import('./CodeEditor'), {
 
 interface FileExplorerProps {
   sessionId: string;
+  shareToken?: string | null;
   onFileChange?: (event: { type: string; path: string }) => void;
 }
 
-export default function FileExplorer({ sessionId }: FileExplorerProps) {
+export default function FileExplorer({ sessionId, shareToken }: FileExplorerProps) {
   const [tree, setTree] = useState<FileNode | null>(null);
   const [selectedFile, setSelectedFile] = useState<FileContent | null>(null);
   const [loading, setLoading] = useState(true);
@@ -132,6 +133,23 @@ export default function FileExplorer({ sessionId }: FileExplorerProps) {
     }
   }, [sessionId]);
 
+  // Download all files as ZIP
+  const handleDownloadAll = useCallback(() => {
+    const params = new URLSearchParams({ zip: 'true' });
+    if (shareToken) params.set('token', shareToken);
+
+    const url = `/api/sessions/${sessionId}/files/download?${params}`;
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'project.zip';
+    document.body.appendChild(link);
+    link.click();
+    // Delay cleanup to ensure download starts
+    setTimeout(() => {
+      document.body.removeChild(link);
+    }, 100);
+  }, [sessionId, shareToken]);
+
   if (loading && !tree) {
     return (
       <div className="flex-1 flex items-center justify-center bg-gray-900">
@@ -165,20 +183,36 @@ export default function FileExplorer({ sessionId }: FileExplorerProps) {
           )}
           <div className="flex items-center gap-1">
             {(!collapsed || isMobile) && (
-              <button
-                onClick={handleRefresh}
-                className="p-2 text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded-lg transition-colors"
-                title="Refresh"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                  />
-                </svg>
-              </button>
+              <>
+                <button
+                  onClick={handleDownloadAll}
+                  className="p-2 text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded-lg transition-colors"
+                  title="Download all as ZIP"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                    />
+                  </svg>
+                </button>
+                <button
+                  onClick={handleRefresh}
+                  className="p-2 text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded-lg transition-colors"
+                  title="Refresh"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
+                </button>
+              </>
             )}
             <button
               onClick={() => setCollapsed(!collapsed)}
@@ -207,6 +241,9 @@ export default function FileExplorer({ sessionId }: FileExplorerProps) {
                 node={tree}
                 onFileSelect={handleFileSelect}
                 selectedPath={selectedPath || undefined}
+                sessionId={sessionId}
+                shareToken={shareToken}
+                rootPath={tree.path}
               />
             ) : null}
           </div>
@@ -272,6 +309,8 @@ export default function FileExplorer({ sessionId }: FileExplorerProps) {
               file={selectedFile}
               loading={fileLoading}
               error={selectedFile ? null : error}
+              sessionId={sessionId}
+              shareToken={shareToken}
             />
           </>
         )}

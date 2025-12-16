@@ -1,15 +1,37 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import type { FileContent } from '@/types';
 
 interface FilePreviewProps {
   file: FileContent | null;
   loading?: boolean;
   error?: string | null;
+  sessionId?: string;
+  shareToken?: string | null;
 }
 
-export default function FilePreview({ file, loading, error }: FilePreviewProps) {
+export default function FilePreview({ file, loading, error, sessionId, shareToken }: FilePreviewProps) {
+  const handleDownload = useCallback(async () => {
+    if (!file || !sessionId) return;
+
+    const params = new URLSearchParams({ path: file.path });
+    if (shareToken) params.set('token', shareToken);
+
+    const url = `/api/sessions/${sessionId}/files/download?${params}`;
+
+    // Create a temporary link and trigger download
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = file.path.split('/').pop() || 'download';
+    document.body.appendChild(link);
+    link.click();
+    // Delay cleanup to ensure download starts
+    setTimeout(() => {
+      document.body.removeChild(link);
+    }, 100);
+  }, [file, sessionId, shareToken]);
+
   const language = useMemo(() => {
     if (!file) return 'text';
 
@@ -118,6 +140,22 @@ export default function FilePreview({ file, loading, error }: FilePreviewProps) 
           <p className="text-sm text-gray-600 mt-1">
             {formatFileSize(file.size)}
           </p>
+          {sessionId && (
+            <button
+              onClick={handleDownload}
+              className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                />
+              </svg>
+              Download
+            </button>
+          )}
         </div>
       </div>
     );
@@ -139,8 +177,26 @@ export default function FilePreview({ file, loading, error }: FilePreviewProps) 
             'bg-gray-500/20 text-gray-400'
           }`}>{language}</span>
         </div>
-        <div className="text-xs text-gray-500 flex-shrink-0 ml-2">
-          {formatFileSize(file.size)}
+        <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+          <span className="text-xs text-gray-500">
+            {formatFileSize(file.size)}
+          </span>
+          {sessionId && (
+            <button
+              onClick={handleDownload}
+              className="p-1.5 text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded transition-colors"
+              title="Download file"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
 
