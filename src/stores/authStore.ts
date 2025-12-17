@@ -8,10 +8,12 @@ interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
   authChecked: boolean;
+  isCheckingAuth: boolean; // Prevents race condition during initial auth check
 
   // Actions
   setUser: (user: PublicUser | null) => void;
   setLoading: (loading: boolean) => void;
+  setCheckingAuth: (checking: boolean) => void;
   logout: () => void;
 }
 
@@ -20,6 +22,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   isLoading: true,
   isAuthenticated: false,
   authChecked: false,
+  isCheckingAuth: false,
 
   setUser: (user) =>
     set({
@@ -27,9 +30,12 @@ export const useAuthStore = create<AuthState>((set) => ({
       isAuthenticated: !!user,
       isLoading: false,
       authChecked: true,
+      isCheckingAuth: false,
     }),
 
   setLoading: (loading) => set({ isLoading: loading }),
+
+  setCheckingAuth: (checking) => set({ isCheckingAuth: checking }),
 
   logout: () =>
     set({
@@ -37,5 +43,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       isAuthenticated: false,
       isLoading: false,
       authChecked: true,
+      isCheckingAuth: false,
     }),
 }));

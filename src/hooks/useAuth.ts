@@ -9,7 +9,7 @@ const API_BASE = '/api/auth';
 
 export function useAuth() {
   const router = useRouter();
-  const { user, isLoading, isAuthenticated, authChecked, setUser, setLoading, logout: clearAuth } = useAuthStore();
+  const { user, isLoading, isAuthenticated, authChecked, isCheckingAuth, setUser, setLoading, setCheckingAuth, logout: clearAuth } = useAuthStore();
 
   // Fetch current user on mount
   const fetchUser = useCallback(async () => {
@@ -34,15 +34,20 @@ export function useAuth() {
   // Empty dependency array is intentional: we only want to check auth ONCE when the
   // hook is first used. Adding dependencies would cause re-checks on every state change,
   // defeating the purpose of the authChecked optimization. The internal checks for
-  // authChecked and user handle the logic correctly for mount-time initialization.
+  // authChecked, isCheckingAuth, and user handle the logic correctly for mount-time initialization.
   useEffect(() => {
     // Skip if auth has already been checked (prevents repeated API calls)
     if (authChecked) {
       setLoading(false);
       return;
     }
+    // Skip if another instance is already checking auth (prevents race condition)
+    if (isCheckingAuth) {
+      return;
+    }
     // If we already have a user in state (e.g., from login), don't refetch
     if (!user) {
+      setCheckingAuth(true);
       fetchUser();
     } else {
       setLoading(false);
