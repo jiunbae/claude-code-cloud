@@ -9,7 +9,7 @@ const API_BASE = '/api/auth';
 
 export function useAuth() {
   const router = useRouter();
-  const { user, isLoading, isAuthenticated, setUser, setLoading, logout: clearAuth } = useAuthStore();
+  const { user, isLoading, isAuthenticated, authChecked, setUser, setLoading, logout: clearAuth } = useAuthStore();
 
   // Fetch current user on mount
   const fetchUser = useCallback(async () => {
@@ -30,8 +30,13 @@ export function useAuth() {
     }
   }, [setUser, setLoading]);
 
-  // Initialize auth state - only fetch if we don't already have a user
+  // Initialize auth state - only fetch if we haven't checked auth yet
   useEffect(() => {
+    // Skip if auth has already been checked (prevents repeated API calls)
+    if (authChecked) {
+      setLoading(false);
+      return;
+    }
     // If we already have a user in state (e.g., from login), don't refetch
     if (!user) {
       fetchUser();

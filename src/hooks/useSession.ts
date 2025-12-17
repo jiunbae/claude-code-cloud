@@ -59,7 +59,17 @@ export function useSession() {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE}/${id}`);
+      // Get share token from sessionStorage if available
+      const shareToken = typeof window !== 'undefined'
+        ? sessionStorage.getItem(`shareToken:${id}`)
+        : null;
+
+      const headers: HeadersInit = {};
+      if (shareToken) {
+        headers['x-share-token'] = shareToken;
+      }
+
+      const response = await fetch(`${API_BASE}/${id}`, { headers });
       if (!response.ok) {
         throw new Error('Session not found');
       }
