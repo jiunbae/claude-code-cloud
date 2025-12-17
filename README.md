@@ -171,38 +171,56 @@ volumes:
 
 ### Environment Variables
 
-```env
-# Required
-JWT_SECRET=your-secure-jwt-secret
+All configurable options are managed through environment variables, loaded from a `.env` file in the project root. Copy `.env.example` to `.env` to get started.
 
-# Admin Account (created on first startup)
+Below is a reference for all available variables:
+
+```env
+# === Required ===
+# A secure, random string for signing JWTs.
+JWT_SECRET=your-secure-jwt-secret-here
+
+# The root directory on the HOST machine that will be mounted into the container
+# for Claude Code to access.
+WORKSPACE_ROOT=/your/workspace/path
+
+# === Admin Account (created on first startup) ===
 ADMIN_EMAIL=admin@example.com
 ADMIN_USERNAME=admin
-ADMIN_PASSWORD=secure-password
+ADMIN_PASSWORD=secure-password-here
 
-# API Keys
+# === API Keys ===
+# Method 1: Set API keys directly in this file.
 ANTHROPIC_API_KEY=sk-ant-xxxxx
 OPENAI_API_KEY=sk-xxxxx
 
-# Ports
-PORT=3000              # Next.js port
-WS_PORT=3001           # WebSocket port
+# Method 2: Use volume mount (see docker-compose.yml).
+# These variables point to directories on the HOST machine.
+# ANTHROPIC_CONFIG=/path/to/.anthropic
+# CLAUDE_CONFIG=/path/to/.claude
 
-# Paths
-DATABASE_PATH=./data/db/claude-cloud.db
-WORKSPACE_ROOT=/home/user/workspace
-
-# User/Group IDs (match host user to avoid permission issues)
+# === User/Group IDs ===
+# Match these to your host user's UID/GID to avoid file permission issues
+# in the mounted workspace. Use `id -u` and `id -g` on your host to find them.
 PUID=1000
 PGID=1000
 
-# WebSocket (for reverse proxy)
-NEXT_PUBLIC_WS_HOST=your-domain.com
-NEXT_PUBLIC_WS_PORT=443
-NEXT_PUBLIC_WS_PATH=/ws
+# === Optional: Git Clone Credentials (for private repos) ===
+# Use a personal access token for HTTPS cloning.
+#GIT_CLONE_TOKEN=ghp_xxxxx
+#GIT_CLONE_USERNAME=x-access-token
 
-# Timezone (default: UTC)
-TZ=Asia/Seoul
+# === Optional: WebSocket (for reverse proxy setup) ===
+# Configure if you are running behind a reverse proxy.
+#NEXT_PUBLIC_WS_PROTOCOL=wss
+#NEXT_PUBLIC_WS_HOST=your-domain.com
+#NEXT_PUBLIC_WS_PORT=443
+#NEXT_PUBLIC_WS_PATH=/ws
+
+# === Optional: Timezone ===
+# Sets the container timezone. See https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+# Defaults to UTC if unset.
+#TZ=Asia/Seoul
 ```
 
 ## Development Phases
