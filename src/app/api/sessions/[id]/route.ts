@@ -58,7 +58,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   // Check access: owner, public, legacy session (no owner), or valid share token
   const canAccess =
     !session.ownerId ||
-    session.ownerId === '' ||
     session.isPublic ||
     (auth && session.ownerId === auth.userId) ||
     hasValidShareToken;
