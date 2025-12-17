@@ -132,13 +132,77 @@ Connect to `ws://localhost:3001?sessionId=<id>` for terminal I/O.
 
 ## Configuration
 
-Environment variables:
+### Quick Start
+
+```bash
+# Copy the example environment file
+cp .env.example .env
+chmod 600 .env
+
+# Edit .env and set your API keys and other settings
+# Then start the service
+docker compose up -d
+```
+
+### API Keys
+
+Claude Code Cloud requires API keys for the AI services:
+
+**Method 1: Environment Variables (Recommended)**
+
+Set in your `.env` file:
 
 ```env
+ANTHROPIC_API_KEY=sk-ant-xxxxx    # For Claude Code
+OPENAI_API_KEY=sk-xxxxx           # For Codex (optional)
+```
+
+**Method 2: File Mount**
+
+Mount credentials directories in `docker-compose.yml`:
+
+```yaml
+volumes:
+  - /path/to/.anthropic:/home/nodejs/.anthropic:ro  # Contains api_key file
+  - /path/to/.openai:/home/nodejs/.openai:ro        # Contains api_key file
+```
+
+**Priority**: Environment variables take precedence over file-based credentials.
+
+### Environment Variables
+
+```env
+# Required
+JWT_SECRET=your-secure-jwt-secret
+
+# Admin Account (created on first startup)
+ADMIN_EMAIL=admin@example.com
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=secure-password
+
+# API Keys
+ANTHROPIC_API_KEY=sk-ant-xxxxx
+OPENAI_API_KEY=sk-xxxxx
+
+# Ports
 PORT=3000              # Next.js port
 WS_PORT=3001           # WebSocket port
+
+# Paths
 DATABASE_PATH=./data/db/claude-cloud.db
 WORKSPACE_ROOT=/home/user/workspace
+
+# User/Group IDs (match host user to avoid permission issues)
+PUID=1000
+PGID=1000
+
+# WebSocket (for reverse proxy)
+NEXT_PUBLIC_WS_HOST=your-domain.com
+NEXT_PUBLIC_WS_PORT=443
+NEXT_PUBLIC_WS_PATH=/ws
+
+# Timezone (default: UTC)
+TZ=Asia/Seoul
 ```
 
 ## Development Phases
