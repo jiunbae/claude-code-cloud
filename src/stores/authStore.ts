@@ -12,7 +12,6 @@ interface AuthState {
   // Actions
   setUser: (user: PublicUser | null) => void;
   setLoading: (loading: boolean) => void;
-  setAuthChecked: (checked: boolean) => void;
   logout: () => void;
 }
 
@@ -31,8 +30,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     }),
 
   setLoading: (loading) => set({ isLoading: loading }),
-
-  setAuthChecked: (checked) => set({ authChecked: checked }),
 
   logout: () =>
     set({
