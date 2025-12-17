@@ -91,6 +91,9 @@ export default function JoinPage() {
         );
       }
 
+      // Store share token for API access
+      sessionStorage.setItem(`shareToken:${sessionInfo.sessionId}`, token);
+
       // Redirect to session page
       router.push(`/session/${sessionInfo.sessionId}`);
     } catch (err) {

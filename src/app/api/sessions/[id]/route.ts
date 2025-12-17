@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sessionStore } from '@/server/session/SessionStore';
 import { getAuthContext } from '@/server/auth';
+import { shareTokenStore } from '@/server/collaboration/ShareTokenStore';
 
 const PTY_API_URL = process.env.PTY_API_URL || 'http://localhost:3003';
 
@@ -34,12 +35,32 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: 'Session not found' }, { status: 404 });
   }
 
-  // Check access: owner, public, or legacy session (no owner)
+  // Check for share token in header or query parameter
+  const shareToken = request.headers.get('x-share-token') ||
+    request.nextUrl.searchParams.get('shareToken');
+
+  // Validate share token if provided
+  // Security policy for share tokens:
+  // - allowAnonymous: true -> Anyone with the token can access (anonymous viewers)
+  // - allowAnonymous: false -> Only authenticated users with the token can access
+  // Note: Non-anonymous tokens grant access to ANY authenticated user with the token,
+  // not specific users. This is by design for simple link sharing. For user-specific
+  // access control, use the owner/public session settings instead.
+  let hasValidShareToken = false;
+  if (shareToken) {
+    const tokenResult = shareTokenStore.validateToken(shareToken);
+    hasValidShareToken =
+      tokenResult.valid &&
+      tokenResult.sessionId === id &&
+      (tokenResult.allowAnonymous || !!auth);
+  }
+
+  // Check access: owner, public, legacy session (no owner), or valid share token
   const canAccess =
     !session.ownerId ||
-    session.ownerId === '' ||
     session.isPublic ||
-    (auth && session.ownerId === auth.userId);
+    (auth && session.ownerId === auth.userId) ||
+    hasValidShareToken;
 
   if (!canAccess) {
     return NextResponse.json({ error: 'Access denied' }, { status: 403 });
