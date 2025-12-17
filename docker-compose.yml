@@ -42,6 +42,11 @@ services:
       - NEXT_PUBLIC_WS_HOST=${NEXT_PUBLIC_WS_HOST:-}
       - NEXT_PUBLIC_WS_PORT=${NEXT_PUBLIC_WS_PORT:-443}
       - NEXT_PUBLIC_WS_PATH=${NEXT_PUBLIC_WS_PATH:-/ws}
+      # API Keys (optional - can also use volume mount method)
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      # Timezone
+      - TZ=${TZ:-UTC}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
