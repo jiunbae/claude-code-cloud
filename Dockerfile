@@ -48,7 +48,7 @@ RUN npm install -g @openai/codex && codex --version
 # ===== Runtime Stage =====
 FROM node:20-bookworm-slim AS runner
 
-# Install runtime dependencies
+# Install runtime dependencies and development tools
 RUN apt-get update && apt-get install -y \
     # For Claude CLI (node-based)
     curl \
@@ -58,10 +58,29 @@ RUN apt-get update && apt-get install -y \
     procps \
     # For entrypoint user switching
     gosu \
-    && rm -rf /var/lib/apt/lists/*
+    # Development tools - Python ecosystem
+    python3 \
+    python3-pip \
+    python3-venv \
+    # Development tools - Build essentials (for native modules)
+    make \
+    g++ \
+    # Development tools - Utilities
+    ripgrep \
+    jq \
+    # For runtime package installation
+    sudo \
+    && rm -rf /var/lib/apt/lists/* \
+    # Create Python symlinks for convenience
+    && ln -sf /usr/bin/python3 /usr/bin/python \
+    && ln -sf /usr/bin/pip3 /usr/bin/pip
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Allow nodejs user to use sudo without password (for runtime package installation)
+RUN echo 'nodejs ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers.d/nodejs \
+    && chmod 0440 /etc/sudoers.d/nodejs
 
 # Install Claude Code CLI from build stage
 COPY --from=claude-cli /usr/local/lib/node_modules/@anthropic-ai /usr/local/lib/node_modules/@anthropic-ai
