@@ -40,7 +40,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     request.nextUrl.searchParams.get('shareToken');
 
   // Validate share token if provided
-  // Security: Only allow access if token allows anonymous OR user is authenticated
+  // Security policy for share tokens:
+  // - allowAnonymous: true -> Anyone with the token can access (anonymous viewers)
+  // - allowAnonymous: false -> Only authenticated users with the token can access
+  // Note: Non-anonymous tokens grant access to ANY authenticated user with the token,
+  // not specific users. This is by design for simple link sharing. For user-specific
+  // access control, use the owner/public session settings instead.
   let hasValidShareToken = false;
   if (shareToken) {
     const tokenResult = shareTokenStore.validateToken(shareToken);

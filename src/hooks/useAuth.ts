@@ -30,7 +30,11 @@ export function useAuth() {
     }
   }, [setUser, setLoading]);
 
-  // Initialize auth state - only fetch if we haven't checked auth yet
+  // Initialize auth state on component mount only.
+  // Empty dependency array is intentional: we only want to check auth ONCE when the
+  // hook is first used. Adding dependencies would cause re-checks on every state change,
+  // defeating the purpose of the authChecked optimization. The internal checks for
+  // authChecked and user handle the logic correctly for mount-time initialization.
   useEffect(() => {
     // Skip if auth has already been checked (prevents repeated API calls)
     if (authChecked) {
