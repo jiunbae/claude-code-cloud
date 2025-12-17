@@ -159,13 +159,14 @@ OPENAI_API_KEY=sk-xxxxx           # For Codex (optional)
 
 **Method 2: File Mount**
 
-Mount credentials directories in `docker-compose.yml`:
+Mount credentials directory using the `ANTHROPIC_CONFIG` environment variable:
 
-```yaml
-volumes:
-  - /path/to/.anthropic:/home/nodejs/.anthropic:ro  # Contains api_key file
-  - /path/to/.openai:/home/nodejs/.openai:ro        # Contains api_key file
+```bash
+# In your .env file
+ANTHROPIC_CONFIG=/path/to/.anthropic  # Directory containing api_key file
 ```
+
+The directory should contain a file named `api_key` with your Anthropic API key.
 
 **Priority**: Environment variables take precedence over file-based credentials.
 
@@ -190,13 +191,16 @@ ADMIN_USERNAME=admin
 ADMIN_PASSWORD=secure-password-here
 
 # === API Keys ===
-# Method 1: Set API keys directly in this file.
+# Set API keys directly (recommended for most users)
 ANTHROPIC_API_KEY=sk-ant-xxxxx
 OPENAI_API_KEY=sk-xxxxx
 
-# Method 2: Use volume mount (see docker-compose.yml).
-# These variables point to directories on the HOST machine.
-# ANTHROPIC_CONFIG=/path/to/.anthropic
+# === Volume Mounts (alternative to API keys above) ===
+# For file-based credentials, set the HOST path to mount into the container.
+# ANTHROPIC_CONFIG=/path/to/.anthropic  # Directory containing api_key file
+
+# === Claude CLI Settings ===
+# Claude CLI configuration directory (for settings, not API key)
 # CLAUDE_CONFIG=/path/to/.claude
 
 # === User/Group IDs ===
