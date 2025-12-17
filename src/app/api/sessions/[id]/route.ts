@@ -40,10 +40,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     request.nextUrl.searchParams.get('shareToken');
 
   // Validate share token if provided
+  // Security: Only allow access if token allows anonymous OR user is authenticated
   let hasValidShareToken = false;
   if (shareToken) {
     const tokenResult = shareTokenStore.validateToken(shareToken);
-    hasValidShareToken = tokenResult.valid && tokenResult.sessionId === id;
+    hasValidShareToken =
+      tokenResult.valid &&
+      tokenResult.sessionId === id &&
+      (tokenResult.allowAnonymous || !!auth);
   }
 
   // Check access: owner, public, legacy session (no owner), or valid share token
