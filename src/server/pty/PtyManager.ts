@@ -5,6 +5,7 @@ import { spawnSync } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
 import type { SessionConfig, SessionStatus, TerminalKind } from '@/types';
+import { resolveCredentials, getClaudeConfigDir, logCredentialAccess } from '../session/CredentialResolver';
 
 interface PtySession {
   pty: IPty;
@@ -138,7 +139,8 @@ export class PtyManager extends EventEmitter {
     sessionId: string,
     workDir: string,
     config: SessionConfig = {},
-    terminal: TerminalKind = 'claude'
+    terminal: TerminalKind = 'claude',
+    userId?: string
   ): Promise<{ pid: number }> {
     const key = this.getKey(sessionId, terminal);
 
@@ -187,29 +189,58 @@ export class PtyManager extends EventEmitter {
           break;
       }
 
+      // Resolve credentials based on user and session config
+      const credentialResult = resolveCredentials(userId, config.env);
+
       // Claude-specific env/config
       if (terminal === 'claude') {
-        // If ANTHROPIC_API_KEY is not provided, try ~/.anthropic/api_key
-        if (!env.ANTHROPIC_API_KEY) {
+        // Use resolved ANTHROPIC_API_KEY
+        if (credentialResult.credentials.ANTHROPIC_API_KEY) {
+          env.ANTHROPIC_API_KEY = credentialResult.credentials.ANTHROPIC_API_KEY;
+        } else if (!env.ANTHROPIC_API_KEY) {
+          // Fallback to file-based key
           const apiKey = await this.resolveAnthropicApiKey(homeDir);
           if (apiKey) {
             env.ANTHROPIC_API_KEY = apiKey;
           }
         }
 
-        // Ensure Claude CLI config directory is writable; fall back if necessary
-        const claudeConfigDir = await this.resolveClaudeConfigDir(homeDir);
+        // Set Claude config directory based on user (for isolation)
+        const claudeConfigDir = userId
+          ? getClaudeConfigDir(userId)
+          : await this.resolveClaudeConfigDir(homeDir);
+
+        // Ensure directory exists
+        try {
+          await fs.mkdir(claudeConfigDir, { recursive: true });
+        } catch {
+          // Ignore errors, directory might already exist
+        }
+
         env.CLAUDE_CONFIG_DIR = claudeConfigDir;
+
+        // Log credential access for audit
+        if (userId) {
+          logCredentialAccess(userId, sessionId, credentialResult.source);
+        }
       }
 
       // Codex-specific env/config
       if (terminal === 'codex') {
-        // If OPENAI_API_KEY is not provided, try ~/.openai/api_key
-        if (!env.OPENAI_API_KEY) {
+        // Use resolved OPENAI_API_KEY
+        if (credentialResult.credentials.OPENAI_API_KEY) {
+          env.OPENAI_API_KEY = credentialResult.credentials.OPENAI_API_KEY;
+        } else if (!env.OPENAI_API_KEY) {
+          // Fallback to file-based key
           const apiKey = await this.resolveOpenAIApiKey(homeDir);
           if (apiKey) {
             env.OPENAI_API_KEY = apiKey;
           }
+        }
+
+        // Log credential access for audit
+        if (userId) {
+          logCredentialAccess(userId, sessionId, credentialResult.source);
         }
       }
 

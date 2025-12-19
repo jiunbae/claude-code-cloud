@@ -61,13 +61,18 @@ ADMIN_EMAIL=admin@example.com
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=secure-password-here
 
-# 필수: Anthropic API 키
-ANTHROPIC_API_KEY=sk-ant-xxxxx
-
 # 권장: 호스트 사용자와 동일한 UID/GID (파일 권한 문제 방지)
 PUID=$(id -u)
 PGID=$(id -g)
+
+# 런타임 선택: Claude 사용 시 필요 (빌드에는 불필요)
+ANTHROPIC_API_KEY=sk-ant-xxxxx
+
+# 런타임 선택: Codex 사용 시 필요
+OPENAI_API_KEY=sk-xxxxx
 ```
+
+> **Note**: API 키는 빌드 시점에는 필요하지 않습니다. 서비스 실행 후 Claude/Codex 세션을 시작할 때 필요합니다.
 
 #### 3. 서비스 시작
 
