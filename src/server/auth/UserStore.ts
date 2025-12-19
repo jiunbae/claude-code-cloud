@@ -81,33 +81,8 @@ class UserStore {
       // Index might already exist
     }
 
-    // Create global_settings table
-    this._db!.exec(`
-      CREATE TABLE IF NOT EXISTS global_settings (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL,
-        description TEXT,
-        updated_at TEXT NOT NULL,
-        updated_by TEXT
-      );
-    `);
-
-    // Create audit_logs table
-    this._db!.exec(`
-      CREATE TABLE IF NOT EXISTS audit_logs (
-        id TEXT PRIMARY KEY,
-        timestamp TEXT NOT NULL,
-        user_id TEXT NOT NULL,
-        action TEXT NOT NULL,
-        resource_type TEXT NOT NULL,
-        resource_id TEXT,
-        details TEXT
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp);
-      CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id);
-      CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
-    `);
+    // Note: global_settings and audit_logs tables are created by GlobalSettingsStore
+    // to maintain single responsibility for those tables
   }
 
   /**

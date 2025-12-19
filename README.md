@@ -65,14 +65,19 @@ ADMIN_PASSWORD=secure-password-here
 PUID=$(id -u)
 PGID=$(id -g)
 
+# 필수 (프로덕션): 민감 정보 암호화를 위한 마스터 키
+# 생성 방법: openssl rand -base64 32
+ENCRYPTION_MASTER_KEY=$(openssl rand -base64 32)
+
 # 런타임 선택: Claude 사용 시 필요 (빌드에는 불필요)
+# 자격증명 우선순위: Session → User (custom) → Global → Environment
 ANTHROPIC_API_KEY=sk-ant-xxxxx
 
 # 런타임 선택: Codex 사용 시 필요
 OPENAI_API_KEY=sk-xxxxx
 ```
 
-> **Note**: API 키는 빌드 시점에는 필요하지 않습니다. 서비스 실행 후 Claude/Codex 세션을 시작할 때 필요합니다.
+> **Note**: API 키는 빌드 시점에는 필요하지 않습니다. 서비스 실행 후 Claude/Codex 세션을 시작할 때 필요합니다. Admin Settings 페이지에서 글로벌 API 키를 관리하거나, 유저별로 개별 자격증명을 설정할 수 있습니다.
 
 #### 3. 서비스 시작
 

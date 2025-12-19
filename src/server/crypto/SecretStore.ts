@@ -19,8 +19,9 @@ function getEncryptionKey(): Buffer {
     const jwtSecret = process.env.JWT_SECRET;
     if (jwtSecret) {
       console.warn('[Security] ENCRYPTION_MASTER_KEY not set, using JWT_SECRET as fallback. This is NOT secure for production.');
-      // Derive a key from JWT_SECRET using SHA-256
-      return crypto.createHash('sha256').update(jwtSecret).digest();
+      // Derive a key from JWT_SECRET using PBKDF2 (more secure than SHA-256)
+      // Using a static salt for this development-only fallback
+      return crypto.pbkdf2Sync(jwtSecret, 'claude-code-cloud-dev-salt', 100000, KEY_LENGTH, 'sha512');
     }
     throw new Error('ENCRYPTION_MASTER_KEY or JWT_SECRET must be set for credential encryption');
   }

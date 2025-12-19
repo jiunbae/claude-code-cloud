@@ -151,16 +151,18 @@ export async function PATCH(
         }
       }
 
-      // Merge: new values override existing, null/empty values delete keys
-      const mergedCredentials: Record<string, string> = {};
-      for (const [key, value] of Object.entries({ ...existingCredentials, ...credentials })) {
-        if (value && typeof value === 'string') {
-          mergedCredentials[key] = value;
+      // Merge: new values override existing
+      const mergedCredentials: UserCredentials = { ...existingCredentials, ...credentials };
+
+      // Remove null, undefined, or empty string values
+      for (const key of Object.keys(mergedCredentials)) {
+        if (!mergedCredentials[key]) {
+          delete mergedCredentials[key];
         }
       }
 
       if (Object.keys(mergedCredentials).length > 0) {
-        const encrypted = encryptCredentials(mergedCredentials);
+        const encrypted = encryptCredentials(mergedCredentials as Record<string, string>);
         userStore.updateCredentials(id, encrypted);
       } else {
         userStore.updateCredentials(id, null);
