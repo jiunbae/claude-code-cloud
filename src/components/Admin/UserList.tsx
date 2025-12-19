@@ -98,6 +98,7 @@ export default function UserList({ users, currentUserId, onRefresh }: UserListPr
             <tr className="text-left text-gray-400 text-sm border-b border-gray-700">
               <th className="pb-3 font-medium">User</th>
               <th className="pb-3 font-medium">Role</th>
+              <th className="pb-3 font-medium">Credentials</th>
               <th className="pb-3 font-medium">Created</th>
               <th className="pb-3 font-medium">Last Login</th>
               <th className="pb-3 font-medium text-right">Actions</th>
@@ -153,6 +154,17 @@ export default function UserList({ users, currentUserId, onRefresh }: UserListPr
                       {user.role}
                     </span>
                   )}
+                </td>
+                <td className="py-4">
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      user.credentialMode === 'custom'
+                        ? 'bg-emerald-500/20 text-emerald-400'
+                        : 'bg-gray-500/20 text-gray-400'
+                    }`}
+                  >
+                    {user.credentialMode === 'custom' ? 'Custom' : 'Global'}
+                  </span>
                 </td>
                 <td className="py-4 text-sm">{formatDate(user.createdAt)}</td>
                 <td className="py-4 text-sm">

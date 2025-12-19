@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { UserRole } from '@/types/auth';
+import type { UserRole, CredentialMode } from '@/types/auth';
 
 interface CreateUserModalProps {
   isOpen: boolean;
@@ -14,6 +14,9 @@ export default function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUs
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<UserRole>('user');
+  const [credentialMode, setCredentialMode] = useState<CredentialMode>('global');
+  const [anthropicApiKey, setAnthropicApiKey] = useState('');
+  const [openaiApiKey, setOpenaiApiKey] = useState('');
   const [error, setError] = useState('');
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -25,10 +28,33 @@ export default function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUs
     setLoading(true);
 
     try {
+      // Build request body
+      const requestBody: Record<string, unknown> = {
+        email,
+        username,
+        password,
+        role,
+        credentialMode,
+      };
+
+      // Add credentials if custom mode is selected
+      if (credentialMode === 'custom') {
+        const credentials: Record<string, string> = {};
+        if (anthropicApiKey.trim()) {
+          credentials.ANTHROPIC_API_KEY = anthropicApiKey.trim();
+        }
+        if (openaiApiKey.trim()) {
+          credentials.OPENAI_API_KEY = openaiApiKey.trim();
+        }
+        if (Object.keys(credentials).length > 0) {
+          requestBody.credentials = credentials;
+        }
+      }
+
       const response = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, username, password, role }),
+        body: JSON.stringify(requestBody),
         credentials: 'include',
       });
 
@@ -40,6 +66,9 @@ export default function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUs
         setUsername('');
         setPassword('');
         setRole('user');
+        setCredentialMode('global');
+        setAnthropicApiKey('');
+        setOpenaiApiKey('');
         onSuccess();
         onClose();
       } else {
@@ -64,7 +93,7 @@ export default function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUs
       />
 
       {/* Modal */}
-      <div className="relative bg-gray-800 rounded-xl shadow-2xl w-full max-w-md p-6 m-4">
+      <div className="relative bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg p-6 m-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold text-white">Create New User</h2>
           <button
@@ -150,6 +179,88 @@ export default function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUs
               <option value="user">User</option>
               <option value="admin">Admin</option>
             </select>
+          </div>
+
+          {/* Credential Mode Section */}
+          <div className="pt-4 border-t border-gray-700">
+            <label className="block text-sm font-medium text-gray-300 mb-3">
+              API Credential Mode
+            </label>
+            <div className="space-y-3">
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="radio"
+                  name="credentialMode"
+                  value="global"
+                  checked={credentialMode === 'global'}
+                  onChange={() => setCredentialMode('global')}
+                  className="mt-1 w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 focus:ring-blue-500 focus:ring-offset-gray-800"
+                />
+                <div>
+                  <span className="text-white group-hover:text-blue-400 transition-colors">
+                    Use Global Settings
+                  </span>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Use the API keys configured in Admin Settings
+                  </p>
+                </div>
+              </label>
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="radio"
+                  name="credentialMode"
+                  value="custom"
+                  checked={credentialMode === 'custom'}
+                  onChange={() => setCredentialMode('custom')}
+                  className="mt-1 w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 focus:ring-blue-500 focus:ring-offset-gray-800"
+                />
+                <div>
+                  <span className="text-white group-hover:text-blue-400 transition-colors">
+                    Use Custom Credentials
+                  </span>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Set user-specific API keys
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            {/* Custom Credentials Fields */}
+            {credentialMode === 'custom' && (
+              <div className="mt-4 p-4 bg-gray-700/50 rounded-lg space-y-4">
+                <div>
+                  <label htmlFor="anthropicApiKey" className="block text-sm font-medium text-gray-300 mb-1.5">
+                    ANTHROPIC_API_KEY
+                    <span className="text-gray-500 font-normal ml-1">(Optional)</span>
+                  </label>
+                  <input
+                    id="anthropicApiKey"
+                    type="password"
+                    value={anthropicApiKey}
+                    onChange={(e) => setAnthropicApiKey(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors font-mono text-sm"
+                    placeholder="sk-ant-..."
+                  />
+                </div>
+                <div>
+                  <label htmlFor="openaiApiKey" className="block text-sm font-medium text-gray-300 mb-1.5">
+                    OPENAI_API_KEY
+                    <span className="text-gray-500 font-normal ml-1">(Optional)</span>
+                  </label>
+                  <input
+                    id="openaiApiKey"
+                    type="password"
+                    value={openaiApiKey}
+                    onChange={(e) => setOpenaiApiKey(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors font-mono text-sm"
+                    placeholder="sk-..."
+                  />
+                </div>
+                <p className="text-xs text-gray-500">
+                  If not set, the user will fall back to global settings for missing keys.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3 pt-4">

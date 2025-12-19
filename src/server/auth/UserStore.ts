@@ -2,7 +2,7 @@ import Database from 'better-sqlite3';
 import { nanoid } from 'nanoid';
 import path from 'path';
 import fs from 'fs';
-import type { User, PublicUser, UserRole } from '@/types/auth';
+import type { User, PublicUser, UserRole, CredentialMode } from '@/types/auth';
 
 // Database path configuration
 const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data/db/claude-cloud.db');
@@ -51,6 +51,16 @@ class UserStore {
       this._db!.exec(`ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'`);
     }
 
+    // Add credential_mode column if it doesn't exist
+    if (!userColumns.some((col) => col.name === 'credential_mode')) {
+      this._db!.exec(`ALTER TABLE users ADD COLUMN credential_mode TEXT DEFAULT 'global'`);
+    }
+
+    // Add credentials_encrypted column if it doesn't exist
+    if (!userColumns.some((col) => col.name === 'credentials_encrypted')) {
+      this._db!.exec(`ALTER TABLE users ADD COLUMN credentials_encrypted TEXT DEFAULT NULL`);
+    }
+
     // Add owner_id and is_public columns to sessions if they don't exist
     try {
       const sessionColumns = this._db!.pragma('table_info(sessions)') as { name: string }[];
@@ -70,6 +80,9 @@ class UserStore {
     } catch {
       // Index might already exist
     }
+
+    // Note: global_settings and audit_logs tables are created by GlobalSettingsStore
+    // to maintain single responsibility for those tables
   }
 
   /**
@@ -270,9 +283,41 @@ class UserStore {
       email: user.email,
       username: user.username,
       role: user.role,
+      credentialMode: user.credentialMode,
       createdAt: user.createdAt,
       lastLoginAt: user.lastLoginAt,
     };
+  }
+
+  /**
+   * Update user credential mode
+   */
+  updateCredentialMode(id: string, mode: CredentialMode): boolean {
+    const stmt = this.db.prepare(`
+      UPDATE users SET credential_mode = ?, updated_at = ? WHERE id = ?
+    `);
+    const result = stmt.run(mode, new Date().toISOString(), id);
+    return result.changes > 0;
+  }
+
+  /**
+   * Update user credentials (encrypted)
+   */
+  updateCredentials(id: string, encryptedCredentials: string | null): boolean {
+    const stmt = this.db.prepare(`
+      UPDATE users SET credentials_encrypted = ?, updated_at = ? WHERE id = ?
+    `);
+    const result = stmt.run(encryptedCredentials, new Date().toISOString(), id);
+    return result.changes > 0;
+  }
+
+  /**
+   * Get user credentials (encrypted)
+   */
+  getCredentials(id: string): string | null {
+    const stmt = this.db.prepare(`SELECT credentials_encrypted FROM users WHERE id = ?`);
+    const row = stmt.get(id) as { credentials_encrypted: string | null } | undefined;
+    return row?.credentials_encrypted || null;
   }
 
   /**
@@ -291,6 +336,7 @@ class UserStore {
       email: row.email,
       username: row.username,
       role: (row.role as UserRole) || 'user',
+      credentialMode: (row.credential_mode as CredentialMode) || 'global',
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
       lastLoginAt: row.last_login_at ? new Date(row.last_login_at) : null,
@@ -306,6 +352,8 @@ interface UserRow {
   username: string;
   password_hash: string;
   role: string;
+  credential_mode: string;
+  credentials_encrypted: string | null;
   created_at: string;
   updated_at: string;
   last_login_at: string | null;

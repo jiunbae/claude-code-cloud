@@ -1,12 +1,23 @@
 // User role type
 export type UserRole = 'admin' | 'user';
 
+// Credential mode type
+export type CredentialMode = 'global' | 'custom';
+
+// User credentials (API keys)
+export interface UserCredentials {
+  ANTHROPIC_API_KEY?: string;
+  OPENAI_API_KEY?: string;
+  [key: string]: string | undefined;
+}
+
 // User types
 export interface User {
   id: string;
   email: string;
   username: string;
   role: UserRole;
+  credentialMode: CredentialMode;
   createdAt: Date;
   updatedAt: Date;
   lastLoginAt: Date | null;
@@ -19,8 +30,19 @@ export interface PublicUser {
   email: string;
   username: string;
   role: UserRole;
+  credentialMode: CredentialMode;
   createdAt: Date;
   lastLoginAt: Date | null;
+}
+
+// User credentials info (masked for display)
+export interface UserCredentialsInfo {
+  mode: CredentialMode;
+  credentials: Array<{
+    key: string;
+    hasValue: boolean;
+    maskedValue?: string;
+  }>;
 }
 
 // JWT payload
