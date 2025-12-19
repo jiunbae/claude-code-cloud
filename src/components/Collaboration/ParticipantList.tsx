@@ -106,7 +106,7 @@ export default function ParticipantList({ sessionId, onShareClick }: Participant
 
       {/* Expanded dropdown */}
       {expanded && (
-        <div className="absolute right-0 top-full mt-2 w-64 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-dropdown">
+        <div className="absolute right-0 top-full mt-2 w-64 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-[var(--z-dropdown)]">
           <div className="p-3 border-b border-gray-700">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-white">
