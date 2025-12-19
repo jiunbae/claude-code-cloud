@@ -10,10 +10,15 @@ function getEncryptionKey(): Buffer {
   const keyBase64 = process.env.ENCRYPTION_MASTER_KEY;
 
   if (!keyBase64) {
-    // Fallback to JWT_SECRET if ENCRYPTION_MASTER_KEY is not set
+    // In production, strictly require ENCRYPTION_MASTER_KEY
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('ENCRYPTION_MASTER_KEY must be set for credential encryption in production environment');
+    }
+
+    // Fallback to JWT_SECRET only in development/test environments
     const jwtSecret = process.env.JWT_SECRET;
     if (jwtSecret) {
-      console.warn('[Security] ENCRYPTION_MASTER_KEY not set, using JWT_SECRET as fallback. This is not recommended for production.');
+      console.warn('[Security] ENCRYPTION_MASTER_KEY not set, using JWT_SECRET as fallback. This is NOT secure for production.');
       // Derive a key from JWT_SECRET using SHA-256
       return crypto.createHash('sha256').update(jwtSecret).digest();
     }

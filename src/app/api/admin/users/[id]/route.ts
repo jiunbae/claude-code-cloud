@@ -145,8 +145,9 @@ export async function PATCH(
       if (encryptedCredentials) {
         try {
           existingCredentials = decryptCredentials(encryptedCredentials);
-        } catch {
-          // Ignore decryption errors
+        } catch (error) {
+          console.error(`[Admin] Failed to decrypt credentials for user ${id}:`, error);
+          // Continue with empty credentials if decryption fails
         }
       }
 
@@ -169,8 +170,15 @@ export async function PATCH(
     // Fetch final updated user
     const finalUser = userStore.getById(id);
 
+    if (!finalUser) {
+      return NextResponse.json(
+        { error: 'User not found after update' },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json({
-      user: userStore.toPublicUser(finalUser!),
+      user: userStore.toPublicUser(finalUser),
       message: 'User updated successfully',
     });
   } catch (error) {

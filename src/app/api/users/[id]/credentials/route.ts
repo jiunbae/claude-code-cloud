@@ -134,8 +134,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       if (encryptedCredentials) {
         try {
           existingCredentials = decryptCredentials(encryptedCredentials);
-        } catch {
-          // Ignore decryption errors, start fresh
+        } catch (error) {
+          console.error(`[User Credentials] Failed to decrypt credentials for user ${id}:`, error);
+          // Continue with empty credentials if decryption fails
         }
       }
 

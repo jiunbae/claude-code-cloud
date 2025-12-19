@@ -132,8 +132,15 @@ export async function POST(request: NextRequest) {
     // Fetch updated user
     const updatedUser = userStore.getById(user.id);
 
+    if (!updatedUser) {
+      return NextResponse.json(
+        { error: 'Failed to retrieve user after creation' },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json({
-      user: userStore.toPublicUser(updatedUser!),
+      user: userStore.toPublicUser(updatedUser),
       message: 'User created successfully',
     }, { status: 201 });
   } catch (error) {
