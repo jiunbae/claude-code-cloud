@@ -16,8 +16,8 @@
   --z-session-tab-bar: 10;
   --z-session-info-bar: 20;
   --z-session-header: 30;
-  --z-dropdown: 50;
-  --z-modal: 60;
+  --z-dropdown: 40;
+  --z-modal: 50;
 }
 
 @media (prefers-color-scheme: dark) {
