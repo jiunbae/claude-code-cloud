@@ -231,7 +231,7 @@ function SessionView() {
   return (
     <div className="h-full bg-gray-900 text-white flex flex-col">
       {/* Session Header Bar */}
-      <div className="relative z-30 flex items-center gap-2 px-3 py-2 bg-gray-800 border-b border-gray-700">
+      <div className="relative z-session-header flex items-center gap-2 px-3 py-2 bg-gray-800 border-b border-gray-700">
         <Link
           href="/"
           className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
@@ -245,7 +245,7 @@ function SessionView() {
       </div>
 
       {/* Session Info Bar - Responsive */}
-      <div className="relative z-20 bg-gray-800/80 backdrop-blur border-b border-gray-700/50 px-3 sm:px-4 py-2 sm:py-3">
+      <div className="relative z-session-info-bar bg-gray-800/80 backdrop-blur border-b border-gray-700/50 px-3 sm:px-4 py-2 sm:py-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
           {/* Session Info */}
           <div className="flex items-center gap-3 min-w-0">
@@ -343,7 +343,7 @@ function SessionView() {
       </div>
 
       {/* Tab Bar - Mobile Optimized */}
-      <div className="relative z-10 bg-gray-800/50 border-b border-gray-700/50 px-2 sm:px-4">
+      <div className="relative z-session-tab-bar bg-gray-800/50 border-b border-gray-700/50 px-2 sm:px-4">
         <div className="flex">
           <button
             onClick={() => setActiveTab('claude')}
