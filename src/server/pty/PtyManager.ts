@@ -213,8 +213,12 @@ export class PtyManager extends EventEmitter {
         // Ensure directory exists
         try {
           await fs.mkdir(claudeConfigDir, { recursive: true });
-        } catch {
-          // Ignore errors, directory might already exist
+        } catch (error) {
+          const err = error as NodeJS.ErrnoException;
+          // Ignore "already exists" errors, but log others
+          if (err.code !== 'EEXIST') {
+            console.error(`[PTY] Failed to create config directory ${claudeConfigDir}:`, error);
+          }
         }
 
         env.CLAUDE_CONFIG_DIR = claudeConfigDir;

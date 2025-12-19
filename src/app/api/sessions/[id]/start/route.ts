@@ -17,6 +17,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const auth = await getAuthContext(request);
   const userId = auth?.userId;
 
+  if (!userId) {
+    console.warn('[Session] Starting session without authenticated user', { sessionId: id });
+  }
+
   const session = sessionStore.getWithWorkspace(id);
 
   if (!session) {

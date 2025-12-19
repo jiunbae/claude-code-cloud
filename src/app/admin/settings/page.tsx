@@ -75,6 +75,7 @@ export default function AdminSettingsPage() {
       setEditingKey(null);
       setEditValue('');
       setEditDescription('');
+      setError(null); // Clear error on success
       await fetchSettings();
     } catch (err) {
       setError((err as Error).message);
@@ -99,6 +100,7 @@ export default function AdminSettingsPage() {
         throw new Error(data.error || 'Failed to delete setting');
       }
 
+      setError(null); // Clear error on success
       await fetchSettings();
     } catch (err) {
       setError((err as Error).message);
@@ -133,6 +135,7 @@ export default function AdminSettingsPage() {
       setNewKey('');
       setNewValue('');
       setNewDescription('');
+      setError(null); // Clear error on success
       await fetchSettings();
     } catch (err) {
       setError((err as Error).message);

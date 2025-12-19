@@ -56,6 +56,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Enforce a reasonable maximum length for setting values (10KB)
+    const MAX_VALUE_LENGTH = 10 * 1024;
+    if (value.length > MAX_VALUE_LENGTH) {
+      return NextResponse.json(
+        { error: 'Value is too long (max 10KB)' },
+        { status: 400 }
+      );
+    }
+
     // Validate key format (alphanumeric and underscores only)
     if (!/^[A-Z][A-Z0-9_]*$/.test(key)) {
       return NextResponse.json(
