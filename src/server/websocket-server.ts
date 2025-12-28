@@ -54,6 +54,7 @@ async function handleTerminalStart(
       return;
     }
 
+    // Pass userId to enable user-specific API key resolution
     const { pid } = await ptyManager.startSession(sessionId, projectPath, config || {}, terminal, userId);
     sendJson(res, 200, { success: true, pid });
   } catch (error) {

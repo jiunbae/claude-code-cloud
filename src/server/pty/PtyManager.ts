@@ -5,6 +5,8 @@ import { spawnSync } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
 import type { SessionConfig, SessionStatus, TerminalKind } from '@/types';
+import { apiKeyStore } from '@/server/settings/ApiKeyStore';
+import { isEncryptionConfigured } from '@/server/crypto/encryption';
 import { resolveCredentials, getClaudeConfigDir, logCredentialAccess } from '../session/CredentialResolver';
 
 interface PtySession {
@@ -83,6 +85,40 @@ export class PtyManager extends EventEmitter {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Resolve API key from user's database storage
+   * Priority: DB (user's stored key) > Environment Variable > File
+   *
+   * @param userId - The user ID to look up API keys for
+   * @param provider - The provider to get the key for ('anthropic' or 'openai')
+   * @returns The decrypted API key or null if not found
+   */
+  private resolveUserApiKey(
+    userId: string | undefined,
+    provider: 'anthropic' | 'openai'
+  ): string | null {
+    // Skip if no user ID or encryption not configured
+    if (!userId || !isEncryptionConfigured()) {
+      return null;
+    }
+
+    try {
+      const activeKey = apiKeyStore.getActiveKey(userId, provider);
+      if (activeKey) {
+        // Update last used timestamp
+        apiKeyStore.updateLastUsed(activeKey.id);
+        console.log(
+          `[PTY] Using user's ${provider} API key (id=${activeKey.id}, name=${activeKey.keyName})`
+        );
+        return activeKey.decryptedKey;
+      }
+    } catch (error) {
+      console.error(`[PTY] Failed to resolve user API key for ${provider}:`, error);
+    }
+
+    return null;
   }
 
   /**
@@ -189,13 +225,19 @@ export class PtyManager extends EventEmitter {
           break;
       }
 
-      // Resolve credentials based on user and session config
+      // Resolve admin credentials based on user and session config
       const credentialResult = resolveCredentials(userId, config.env);
 
       // Claude-specific env/config
       if (terminal === 'claude') {
-        // Use resolved ANTHROPIC_API_KEY
-        if (credentialResult.credentials.ANTHROPIC_API_KEY) {
+        // API Key Resolution Priority:
+        // 1. User's personal API keys (from database)
+        // 2. Admin-configured credentials (from global settings)
+        // 3. File-based key fallback
+        const userApiKey = this.resolveUserApiKey(userId, 'anthropic');
+        if (userApiKey) {
+          env.ANTHROPIC_API_KEY = userApiKey;
+        } else if (credentialResult.credentials.ANTHROPIC_API_KEY) {
           env.ANTHROPIC_API_KEY = credentialResult.credentials.ANTHROPIC_API_KEY;
         } else if (!env.ANTHROPIC_API_KEY) {
           // Fallback to file-based key
@@ -231,8 +273,14 @@ export class PtyManager extends EventEmitter {
 
       // Codex-specific env/config
       if (terminal === 'codex') {
-        // Use resolved OPENAI_API_KEY
-        if (credentialResult.credentials.OPENAI_API_KEY) {
+        // API Key Resolution Priority:
+        // 1. User's personal API keys (from database)
+        // 2. Admin-configured credentials (from global settings)
+        // 3. File-based key fallback
+        const userApiKey = this.resolveUserApiKey(userId, 'openai');
+        if (userApiKey) {
+          env.OPENAI_API_KEY = userApiKey;
+        } else if (credentialResult.credentials.OPENAI_API_KEY) {
           env.OPENAI_API_KEY = credentialResult.credentials.OPENAI_API_KEY;
         } else if (!env.OPENAI_API_KEY) {
           // Fallback to file-based key
