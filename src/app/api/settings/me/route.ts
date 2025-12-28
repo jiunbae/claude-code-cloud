@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, isErrorResponse } from '@/server/auth';
 import { userSettingsStore } from '@/server/settings';
 import type { UserSettingsUpdate } from '@/types/settings';
+import { VALID_THEMES, VALID_LANGUAGES } from '@/types/settings';
 
 // GET /api/settings/me - Get current user settings
 export async function GET(request: NextRequest) {
@@ -40,7 +41,7 @@ export async function PUT(request: NextRequest) {
 
     // Validate and extract allowed fields
     if (body.theme !== undefined) {
-      if (!['light', 'dark', 'system'].includes(body.theme)) {
+      if (!VALID_THEMES.includes(body.theme)) {
         return NextResponse.json(
           { error: 'Invalid theme value', field: 'theme' },
           { status: 400 }
@@ -50,7 +51,7 @@ export async function PUT(request: NextRequest) {
     }
 
     if (body.language !== undefined) {
-      if (!['en', 'ko', 'ja', 'zh'].includes(body.language)) {
+      if (!VALID_LANGUAGES.includes(body.language)) {
         return NextResponse.json(
           { error: 'Invalid language value', field: 'language' },
           { status: 400 }

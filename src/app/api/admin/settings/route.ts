@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin, isErrorResponse } from '@/server/auth';
 import { globalSettingsStore } from '@/server/settings';
 import type { GlobalSettings } from '@/types/settings';
+import { VALID_API_PROVIDERS } from '@/types/settings';
 
 // GET /api/admin/settings - Get global settings (admin only)
 export async function GET(request: NextRequest) {
@@ -61,7 +62,7 @@ export async function PUT(request: NextRequest) {
     }
 
     if (body.defaultApiProvider !== undefined) {
-      if (!['anthropic', 'openai', 'google'].includes(body.defaultApiProvider)) {
+      if (!VALID_API_PROVIDERS.includes(body.defaultApiProvider)) {
         return NextResponse.json(
           { error: 'Invalid API provider', field: 'defaultApiProvider' },
           { status: 400 }
@@ -110,17 +111,23 @@ export async function PUT(request: NextRequest) {
 
     if (body.customBranding !== undefined) {
       // Validate custom branding object
-      if (typeof body.customBranding !== 'object') {
+      if (typeof body.customBranding !== 'object' || body.customBranding === null) {
         return NextResponse.json(
           { error: 'Invalid customBranding format', field: 'customBranding' },
           { status: 400 }
         );
       }
-      updates.customBranding = {
-        appName: body.customBranding.appName ?? undefined,
-        logoUrl: body.customBranding.logoUrl ?? undefined,
-        primaryColor: body.customBranding.primaryColor ?? undefined,
-      };
+      // Validate and extract only string properties
+      updates.customBranding = {};
+      if (typeof body.customBranding.appName === 'string') {
+        updates.customBranding.appName = body.customBranding.appName;
+      }
+      if (typeof body.customBranding.logoUrl === 'string') {
+        updates.customBranding.logoUrl = body.customBranding.logoUrl;
+      }
+      if (typeof body.customBranding.primaryColor === 'string') {
+        updates.customBranding.primaryColor = body.customBranding.primaryColor;
+      }
     }
 
     const settings = globalSettingsStore.updateMany(updates, auth.userId);

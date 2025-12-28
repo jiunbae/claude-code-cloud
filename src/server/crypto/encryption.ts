@@ -146,7 +146,7 @@ export function maskApiKey(key: string): string {
 /**
  * Validate that an API key has a valid format
  */
-export function validateApiKeyFormat(key: string, provider: 'anthropic' | 'openai'): boolean {
+export function validateApiKeyFormat(key: string, provider: 'anthropic' | 'openai' | 'google'): boolean {
   if (!key || typeof key !== 'string') {
     return false;
   }
@@ -158,8 +158,12 @@ export function validateApiKeyFormat(key: string, provider: 'anthropic' | 'opena
     case 'openai':
       // OpenAI keys start with sk- or sk-proj-
       return (key.startsWith('sk-') || key.startsWith('sk-proj-')) && key.length > 20;
+    case 'google':
+      // Google API keys are typically 39 characters
+      return key.length >= 30;
     default:
-      return key.length > 10;
+      // Unknown provider - reject for safety
+      return false;
   }
 }
 

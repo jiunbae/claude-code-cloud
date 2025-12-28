@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -16,6 +16,13 @@ export default function SettingsPage() {
   const router = useRouter();
   const { user, isLoading, isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
+
+  // Redirect to general tab if non-admin tries to access admin tab
+  useEffect(() => {
+    if (activeTab === 'admin' && user?.role !== 'admin') {
+      setActiveTab('general');
+    }
+  }, [activeTab, user?.role]);
 
   // Redirect to login if not authenticated
   if (!isLoading && !isAuthenticated) {
@@ -46,7 +53,6 @@ export default function SettingsPage() {
           return <AdminSettings />;
         }
         // Fall back to general if somehow navigated here without admin role
-        setActiveTab('general');
         return <GeneralSettings />;
       default:
         return <GeneralSettings />;
