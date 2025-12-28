@@ -156,13 +156,17 @@ class SkillManager {
 
   /**
    * Get user's installed skills with full details
+   * Optimized with Map lookup for O(N+M) instead of O(N*M) complexity
    */
   getUserSkillsWithDetails(userId: string): UserSkillWithDetails[] {
     const userSkills = skillStore.getUserSkills(userId);
     const allSkills = skillStore.getAllSkills();
 
+    // Create Map for O(1) lookup instead of O(N) find
+    const userSkillMap = new Map(userSkills.map((us) => [us.skillName, us]));
+
     return allSkills.map((skill) => {
-      const userSkill = userSkills.find((us) => us.skillName === skill.name);
+      const userSkill = userSkillMap.get(skill.name);
       return {
         ...skill,
         isInstalled: !!userSkill,
@@ -178,6 +182,24 @@ class SkillManager {
    */
   getUserSkills(userId: string): UserSkill[] {
     return skillStore.getUserSkills(userId);
+  }
+
+  /**
+   * Get a single user skill with full details
+   */
+  getUserSkillWithDetails(userId: string, skillName: string): UserSkillWithDetails | null {
+    const skill = skillStore.getSkillByName(skillName);
+    if (!skill) return null;
+
+    const userSkill = skillStore.getUserSkill(userId, skillName);
+
+    return {
+      ...skill,
+      isInstalled: !!userSkill,
+      isEnabled: userSkill?.isEnabled ?? false,
+      config: userSkill?.config ?? {},
+      installedAt: userSkill?.installedAt,
+    };
   }
 
   /**

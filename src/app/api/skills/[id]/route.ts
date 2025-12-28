@@ -84,9 +84,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    // Get updated skill
-    const skills = skillManager.getUserSkillsWithDetails(auth.userId);
-    const skill = skills.find((s) => s.name === skillName);
+    // Get updated skill (optimized: fetch single skill instead of all)
+    const skill = skillManager.getUserSkillWithDetails(auth.userId, skillName);
 
     if (!skill) {
       return NextResponse.json(

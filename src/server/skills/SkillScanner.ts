@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { createHash } from 'crypto';
+import yaml from 'js-yaml';
 import type { SkillFile, SkillMetadata, SkillCategory } from '@/types/skill';
 
 // Skills directory configuration
@@ -8,7 +9,7 @@ const CLAUDE_CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR || path.join(process.env
 const SKILLS_DIR = path.join(CLAUDE_CONFIG_DIR, 'skills');
 
 /**
- * Parse YAML frontmatter from markdown content
+ * Parse YAML frontmatter from markdown content using js-yaml
  */
 function parseFrontmatter(content: string): { metadata: Record<string, unknown>; body: string } {
   const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/;
@@ -21,62 +22,13 @@ function parseFrontmatter(content: string): { metadata: Record<string, unknown>;
   const yamlContent = match[1];
   const body = match[2];
 
-  // Simple YAML parser for basic key-value pairs and arrays
-  const metadata: Record<string, unknown> = {};
-  const lines = yamlContent.split('\n');
-  let currentKey = '';
-  let currentArray: string[] = [];
-  let inArray = false;
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
-
-    // Check for array item
-    if (line.startsWith('  - ') || line.startsWith('    - ')) {
-      if (inArray) {
-        currentArray.push(trimmed.substring(2).trim().replace(/^['"]|['"]$/g, ''));
-      }
-      continue;
-    }
-
-    // Save previous array
-    if (inArray && currentKey) {
-      metadata[currentKey] = currentArray;
-      currentArray = [];
-      inArray = false;
-    }
-
-    // Parse key-value pair
-    const colonIndex = trimmed.indexOf(':');
-    if (colonIndex > 0) {
-      const key = trimmed.substring(0, colonIndex).trim();
-      const value = trimmed.substring(colonIndex + 1).trim();
-
-      if (!value) {
-        // Array or nested object starts
-        currentKey = key;
-        inArray = true;
-      } else {
-        // Clean value (remove quotes)
-        let cleanValue: string | boolean | number = value.replace(/^['"]|['"]$/g, '');
-
-        // Type conversion
-        if (cleanValue === 'true') cleanValue = true;
-        else if (cleanValue === 'false') cleanValue = false;
-        else if (/^\d+$/.test(cleanValue)) cleanValue = parseInt(cleanValue, 10);
-
-        metadata[key] = cleanValue;
-      }
-    }
+  try {
+    const metadata = yaml.load(yamlContent) as Record<string, unknown>;
+    return { metadata: metadata || {}, body };
+  } catch (error) {
+    console.error('Failed to parse YAML frontmatter:', error);
+    return { metadata: {}, body };
   }
-
-  // Save last array if any
-  if (inArray && currentKey && currentArray.length > 0) {
-    metadata[currentKey] = currentArray;
-  }
-
-  return { metadata, body };
 }
 
 /**

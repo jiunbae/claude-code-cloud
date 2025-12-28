@@ -31,11 +31,13 @@ export async function GET(request: NextRequest) {
       isSystem: isSystem !== null ? isSystem === 'true' : undefined,
     };
 
-    // Params with pagination for fetching
+    // Params with pagination for fetching (with NaN safety check)
+    const parsedLimit = limit ? parseInt(limit, 10) : NaN;
+    const parsedOffset = offset ? parseInt(offset, 10) : NaN;
     const params = {
       ...filterParams,
-      limit: limit ? parseInt(limit, 10) : undefined,
-      offset: offset ? parseInt(offset, 10) : undefined,
+      limit: !isNaN(parsedLimit) ? parsedLimit : undefined,
+      offset: !isNaN(parsedOffset) ? parsedOffset : undefined,
     };
 
     const skills = skillManager.getAvailableSkills(params);
