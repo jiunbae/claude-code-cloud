@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { skillManager } from '@/server/skills';
+import { skillManager, SkillDependentError } from '@/server/skills';
 import { getAuthContext } from '@/server/auth';
 import type { UserSkillUpdate } from '@/types/skill';
 
@@ -131,12 +131,15 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Failed to uninstall skill:', error);
 
-    // Handle dependency error
-    const message = error instanceof Error ? error.message : 'Failed to uninstall skill';
-    if (message.includes('Cannot uninstall')) {
-      return NextResponse.json({ error: message }, { status: 400 });
+    // Handle dependency error using custom error type
+    if (error instanceof SkillDependentError) {
+      return NextResponse.json({
+        error: error.message,
+        dependentSkill: error.dependentSkill,
+      }, { status: 400 });
     }
 
+    const message = error instanceof Error ? error.message : 'Failed to uninstall skill';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

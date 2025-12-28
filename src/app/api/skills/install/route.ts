@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { skillManager } from '@/server/skills';
+import {
+  skillManager,
+  SkillNotFoundError,
+  SkillAlreadyInstalledError,
+  SkillDependencyError,
+} from '@/server/skills';
 import { getAuthContext } from '@/server/auth';
 import type { UserSkillCreate, SkillInstallResponse } from '@/types/skill';
 
@@ -40,16 +45,21 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Failed to install skill:', error);
 
-    // Handle specific errors
+    // Handle specific errors using custom error types
+    if (error instanceof SkillNotFoundError) {
+      return NextResponse.json({ error: error.message }, { status: 404 });
+    }
+    if (error instanceof SkillAlreadyInstalledError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    if (error instanceof SkillDependencyError) {
+      return NextResponse.json({
+        error: error.message,
+        missingDependencies: error.missingDependencies,
+      }, { status: 400 });
+    }
+
     const message = error instanceof Error ? error.message : 'Failed to install skill';
-
-    if (message.includes('not found')) {
-      return NextResponse.json({ error: message }, { status: 404 });
-    }
-    if (message.includes('already installed') || message.includes('Missing dependencies')) {
-      return NextResponse.json({ error: message }, { status: 400 });
-    }
-
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

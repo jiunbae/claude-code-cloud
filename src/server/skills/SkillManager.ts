@@ -1,5 +1,11 @@
 import { skillStore } from './SkillStore';
 import { skillScanner, SkillScanner } from './SkillScanner';
+import {
+  SkillNotFoundError,
+  SkillAlreadyInstalledError,
+  SkillDependencyError,
+  SkillDependentError,
+} from './errors';
 import type {
   Skill,
   UserSkill,
@@ -233,12 +239,12 @@ class SkillManager {
     // Verify skill exists in registry
     const skill = skillStore.getSkillByName(data.skillName);
     if (!skill) {
-      throw new Error(`Skill not found: ${data.skillName}`);
+      throw new SkillNotFoundError(data.skillName);
     }
 
     // Check if already installed
     if (skillStore.hasSkillInstalled(userId, data.skillName)) {
-      throw new Error(`Skill already installed: ${data.skillName}`);
+      throw new SkillAlreadyInstalledError(data.skillName);
     }
 
     // Check dependencies
@@ -247,7 +253,7 @@ class SkillManager {
         (dep) => !skillStore.hasSkillInstalled(userId, dep)
       );
       if (missingDeps.length > 0) {
-        throw new Error(`Missing dependencies: ${missingDeps.join(', ')}`);
+        throw new SkillDependencyError(data.skillName, missingDeps);
       }
     }
 
@@ -264,9 +270,7 @@ class SkillManager {
     for (const userSkill of userSkills) {
       const skill = skillStore.getSkillByName(userSkill.skillName);
       if (skill && skill.dependencies.includes(skillName)) {
-        throw new Error(
-          `Cannot uninstall: ${userSkill.skillName} depends on ${skillName}`
-        );
+        throw new SkillDependentError(skillName, userSkill.skillName);
       }
     }
 

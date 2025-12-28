@@ -73,7 +73,7 @@ export default function SkillManager() {
   }, [installSkill]);
 
   const handleUninstall = useCallback(async (skillName: string) => {
-    if (!confirm(`Are you sure you want to uninstall "${skillName}"?`)) {
+    if (!confirm(`"${skillName}" 스킬을 정말로 제거하시겠습니까?`)) {
       return;
     }
     setActionLoading(skillName);
@@ -101,24 +101,24 @@ export default function SkillManager() {
       if (result) {
         const { added, updated, removed, errors } = result;
         const messages: string[] = [];
-        if (added.length > 0) messages.push(`${added.length} added`);
-        if (updated.length > 0) messages.push(`${updated.length} updated`);
-        if (removed.length > 0) messages.push(`${removed.length} removed`);
+        if (added.length > 0) messages.push(`${added.length}개 추가됨`);
+        if (updated.length > 0) messages.push(`${updated.length}개 업데이트됨`);
+        if (removed.length > 0) messages.push(`${removed.length}개 제거됨`);
 
         if (errors.length > 0) {
           setSyncMessage({
             type: 'error',
-            text: `Sync completed with ${errors.length} error(s). ${messages.join(', ')}`,
+            text: `동기화 완료 (오류 ${errors.length}건). ${messages.join(', ')}`,
           });
         } else if (messages.length > 0) {
           setSyncMessage({
             type: 'success',
-            text: `Sync completed: ${messages.join(', ')}`,
+            text: `동기화 완료: ${messages.join(', ')}`,
           });
         } else {
           setSyncMessage({
             type: 'success',
-            text: 'Sync completed: No changes detected',
+            text: '동기화 완료: 변경사항 없음',
           });
         }
         // Auto-hide message after 5 seconds
@@ -127,7 +127,7 @@ export default function SkillManager() {
     } catch (err) {
       setSyncMessage({
         type: 'error',
-        text: `Sync failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        text: `동기화 실패: ${err instanceof Error ? err.message : '알 수 없는 오류'}`,
       });
     } finally {
       setSyncing(false);
