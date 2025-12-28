@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sessionStore } from '@/server/session/SessionStore';
 import { workspaceManager } from '@/server/workspace/WorkspaceManager';
+import { getAuthContext } from '@/server/auth';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -11,6 +12,15 @@ const PTY_API_URL = process.env.PTY_API_URL || 'http://localhost:3003';
 // POST /api/sessions/:id/start - Start Claude Code process
 export async function POST(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
+
+  // Get authenticated user (optional - for credential resolution)
+  const auth = await getAuthContext(request);
+  const userId = auth?.userId;
+
+  if (!userId) {
+    console.warn('[Session] Starting session without authenticated user', { sessionId: id });
+  }
+
   const session = sessionStore.getWithWorkspace(id);
 
   if (!session) {
@@ -43,6 +53,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       body: JSON.stringify({
         projectPath,
         config: session.config,
+        userId, // Pass user ID for credential resolution
       }),
     });
 
