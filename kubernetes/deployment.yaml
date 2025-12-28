@@ -61,6 +61,7 @@ spec:
                 secretKeyRef:
                   name: claude-code-cloud-secrets
                   key: anthropic-api-key
+                  optional: true
             - name: OPENAI_API_KEY
               valueFrom:
                 secretKeyRef:
