@@ -117,11 +117,13 @@ export default function Terminal({
             break;
 
           case 'terminal:scrollback':
-            // Write scrollback history
-            if (Array.isArray(message.data)) {
-              message.data.forEach((line: string) => {
-                xtermRef.current?.writeln(line);
-              });
+            // Write scrollback history (join for better performance)
+            // Use write callback to ensure scrollToBottom runs after rendering
+            if (Array.isArray(message.data) && message.data.length > 0) {
+              const scrollbackContent = message.data.join('\r\n') + '\r\n';
+              xtermRef.current?.write(scrollbackContent, () => xtermRef.current?.scrollToBottom());
+            } else {
+              xtermRef.current?.scrollToBottom();
             }
             break;
 
