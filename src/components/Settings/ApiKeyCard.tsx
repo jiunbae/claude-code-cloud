@@ -46,7 +46,8 @@ export default function ApiKeyCard({
 
   const formatDate = (date: Date | null) => {
     if (!date) return 'Never';
-    return new Date(date).toLocaleDateString('ko-KR', {
+    // Use undefined to let the browser use the user's default locale
+    return new Date(date).toLocaleDateString(undefined, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',

@@ -45,12 +45,11 @@ function getEncryptionKey(): Buffer {
     return Buffer.from(key, 'utf8');
   }
 
-  // Hash the key to get 32 bytes (less secure, but allows any length key)
-  console.warn(
-    'ENCRYPTION_KEY should be a 64-character hex string. ' +
-    'Using SHA-256 hash of the provided key instead.'
+  // The key must be a 32-byte value. A 64-character hex string is expected.
+  throw new Error(
+    'Invalid ENCRYPTION_KEY format. It must be a 64-character hex string. ' +
+      'Generate a secure key with: openssl rand -hex 32'
   );
-  return crypto.createHash('sha256').update(key).digest();
 }
 
 /**
@@ -146,7 +145,7 @@ export function maskApiKey(key: string): string {
 /**
  * Validate that an API key has a valid format
  */
-export function validateApiKeyFormat(key: string, provider: 'anthropic' | 'openai'): boolean {
+export function validateApiKeyFormat(key: string, provider: 'anthropic' | 'openai' | 'google'): boolean {
   if (!key || typeof key !== 'string') {
     return false;
   }
@@ -158,8 +157,12 @@ export function validateApiKeyFormat(key: string, provider: 'anthropic' | 'opena
     case 'openai':
       // OpenAI keys start with sk- or sk-proj-
       return (key.startsWith('sk-') || key.startsWith('sk-proj-')) && key.length > 20;
+    case 'google':
+      // Google AI keys don't have a consistent prefix, but we can check for a reasonable length.
+      return key.length > 30;
     default:
-      return key.length > 10;
+      // This case should not be reachable with TypeScript if all providers are handled.
+      return false;
   }
 }
 

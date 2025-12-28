@@ -15,6 +15,16 @@ import {
 const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data/db/claude-cloud.db');
 
 /**
+ * Custom error for duplicate API key
+ */
+export class DuplicateKeyError extends Error {
+  constructor(keyName: string, provider: string) {
+    super(`API key with name "${keyName}" already exists for provider "${provider}"`);
+    this.name = 'DuplicateKeyError';
+  }
+}
+
+/**
  * Database row type for user_api_keys table
  */
 interface ApiKeyRow {
@@ -155,7 +165,7 @@ class ApiKeyStore {
     const existing = existingStmt.get(userId, data.provider, data.keyName);
 
     if (existing) {
-      throw new Error(`API key with name "${data.keyName}" already exists for this provider`);
+      throw new DuplicateKeyError(data.keyName, data.provider);
     }
 
     // If this is the first key for this provider, make it active by default
@@ -206,6 +216,7 @@ class ApiKeyStore {
 
   /**
    * Set an API key as active (deactivates other keys for same provider)
+   * Uses a transaction to ensure atomicity
    */
   setActive(id: string, userId: string, active: boolean): ApiKey | null {
     // Verify ownership
@@ -216,23 +227,27 @@ class ApiKeyStore {
 
     const now = new Date().toISOString();
 
-    if (active) {
-      // Deactivate all other keys for this provider
-      const deactivateStmt = this.db.prepare(`
-        UPDATE user_api_keys
-        SET is_active = 0, updated_at = ?
-        WHERE user_id = ? AND provider = ? AND id != ?
-      `);
-      deactivateStmt.run(now, userId, key.provider, id);
-    }
+    const transaction = this.db.transaction(() => {
+      if (active) {
+        // Deactivate all other keys for this provider
+        const deactivateStmt = this.db.prepare(`
+          UPDATE user_api_keys
+          SET is_active = 0, updated_at = ?
+          WHERE user_id = ? AND provider = ? AND id != ?
+        `);
+        deactivateStmt.run(now, userId, key.provider, id);
+      }
 
-    // Update this key's active status
-    const stmt = this.db.prepare(`
-      UPDATE user_api_keys
-      SET is_active = ?, updated_at = ?
-      WHERE id = ?
-    `);
-    stmt.run(active ? 1 : 0, now, id);
+      // Update this key's active status
+      const stmt = this.db.prepare(`
+        UPDATE user_api_keys
+        SET is_active = ?, updated_at = ?
+        WHERE id = ?
+      `);
+      stmt.run(active ? 1 : 0, now, id);
+    });
+
+    transaction();
 
     return this.getById(id);
   }

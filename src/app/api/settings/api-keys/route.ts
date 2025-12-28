@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthContext } from '@/server/auth';
-import { apiKeyStore } from '@/server/settings/ApiKeyStore';
+import { apiKeyStore, DuplicateKeyError } from '@/server/settings/ApiKeyStore';
 import { validateApiKeyFormat, isEncryptionConfigured } from '@/server/crypto/encryption';
 import type { ApiKeyCreate, ApiKeyListResponse } from '@/types/settings';
+import { API_KEY_PROVIDERS } from '@/types/settings';
 
 /**
  * GET /api/settings/api-keys
@@ -75,9 +76,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!['anthropic', 'openai', 'google'].includes(body.provider)) {
+    if (!API_KEY_PROVIDERS.includes(body.provider)) {
       return NextResponse.json(
-        { error: 'Invalid provider. Must be anthropic, openai, or google', field: 'provider' },
+        { error: `Invalid provider. Must be one of: ${API_KEY_PROVIDERS.join(', ')}`, field: 'provider' },
         { status: 400 }
       );
     }
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate API key format
-    if (body.provider !== 'google' && !validateApiKeyFormat(body.apiKey, body.provider)) {
+    if (!validateApiKeyFormat(body.apiKey, body.provider)) {
       return NextResponse.json(
         { error: `Invalid API key format for ${body.provider}`, field: 'apiKey' },
         { status: 400 }
@@ -103,16 +104,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ apiKey }, { status: 201 });
   } catch (error) {
     console.error('[API Keys] Failed to add key:', error);
-    const message = error instanceof Error ? error.message : 'Failed to add API key';
 
     // Check for duplicate key error
-    if (message.includes('already exists')) {
+    if (error instanceof DuplicateKeyError) {
       return NextResponse.json(
-        { error: message, field: 'keyName' },
+        { error: error.message, field: 'keyName' },
         { status: 409 }
       );
     }
 
+    const message = error instanceof Error ? error.message : 'Failed to add API key';
     return NextResponse.json(
       { error: message },
       { status: 500 }

@@ -81,6 +81,8 @@ export default function AddApiKeyModal({ isOpen, onClose, onSuccess }: AddApiKey
         setKeyName('');
         setApiKey('');
         setVerified(null);
+        setError('');
+        setFieldError(null);
         onSuccess();
         onClose();
       } else {

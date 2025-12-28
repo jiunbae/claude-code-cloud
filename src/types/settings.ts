@@ -46,6 +46,8 @@ export interface UserSettingsUpdate {
 
 export type ApiKeyProvider = 'anthropic' | 'openai' | 'google';
 
+export const API_KEY_PROVIDERS: readonly ApiKeyProvider[] = ['anthropic', 'openai', 'google'] as const;
+
 export interface ApiKey {
   id: string;
   userId: string;

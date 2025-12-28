@@ -17,9 +17,11 @@ export default function ApiKeyManager({ initialFilter = 'all' }: ApiKeyManagerPr
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const fetchApiKeys = useCallback(async () => {
+  const fetchApiKeys = useCallback(async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       setError(null);
 
       const response = await fetch('/api/settings/api-keys', {
@@ -36,7 +38,9 @@ export default function ApiKeyManager({ initialFilter = 'all' }: ApiKeyManagerPr
     } catch {
       setError('Failed to load API keys');
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -83,20 +87,9 @@ export default function ApiKeyManager({ initialFilter = 'all' }: ApiKeyManagerPr
       const data = await response.json();
 
       if (response.ok) {
-        // If activating a key, deactivate others with same provider
-        const updatedKey = data.apiKey;
-        setApiKeys((prev) =>
-          prev.map((key) => {
-            if (key.id === id) {
-              return updatedKey;
-            }
-            // Deactivate other keys of the same provider when one is activated
-            if (isActive && key.provider === updatedKey.provider && key.id !== id) {
-              return { ...key, isActive: false };
-            }
-            return key;
-          })
-        );
+        // The backend handles deactivating other keys for the same provider.
+        // Refetching the keys ensures the UI reflects the source of truth.
+        await fetchApiKeys(false);
       } else {
         setError(data.error || 'Failed to update API key');
       }
