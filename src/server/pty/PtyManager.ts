@@ -5,6 +5,8 @@ import { spawnSync } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
 import type { SessionConfig, SessionStatus, TerminalKind } from '@/types';
+import { apiKeyStore } from '@/server/settings/ApiKeyStore';
+import { isEncryptionConfigured } from '@/server/crypto/encryption';
 
 interface PtySession {
   pty: IPty;
@@ -85,6 +87,40 @@ export class PtyManager extends EventEmitter {
   }
 
   /**
+   * Resolve API key from user's database storage
+   * Priority: DB (user's stored key) > Environment Variable > File
+   *
+   * @param userId - The user ID to look up API keys for
+   * @param provider - The provider to get the key for ('anthropic' or 'openai')
+   * @returns The decrypted API key or null if not found
+   */
+  private resolveUserApiKey(
+    userId: string | undefined,
+    provider: 'anthropic' | 'openai'
+  ): string | null {
+    // Skip if no user ID or encryption not configured
+    if (!userId || !isEncryptionConfigured()) {
+      return null;
+    }
+
+    try {
+      const activeKey = apiKeyStore.getActiveKey(userId, provider);
+      if (activeKey) {
+        // Update last used timestamp
+        apiKeyStore.updateLastUsed(activeKey.id);
+        console.log(
+          `[PTY] Using user's ${provider} API key (id=${activeKey.id}, name=${activeKey.keyName})`
+        );
+        return activeKey.decryptedKey;
+      }
+    } catch (error) {
+      console.error(`[PTY] Failed to resolve user API key for ${provider}:`, error);
+    }
+
+    return null;
+  }
+
+  /**
    * Ensure directory exists and is writable. Returns the path used.
    * Falls back to /app/data/claude if the primary directory is not writable
    * (common on NAS /bind mounts that disallow chown).
@@ -138,7 +174,8 @@ export class PtyManager extends EventEmitter {
     sessionId: string,
     workDir: string,
     config: SessionConfig = {},
-    terminal: TerminalKind = 'claude'
+    terminal: TerminalKind = 'claude',
+    userId?: string
   ): Promise<{ pid: number }> {
     const key = this.getKey(sessionId, terminal);
 
@@ -189,11 +226,18 @@ export class PtyManager extends EventEmitter {
 
       // Claude-specific env/config
       if (terminal === 'claude') {
-        // If ANTHROPIC_API_KEY is not provided, try ~/.anthropic/api_key
+        // API Key Resolution Priority: User DB > Environment Variable > File
         if (!env.ANTHROPIC_API_KEY) {
-          const apiKey = await this.resolveAnthropicApiKey(homeDir);
-          if (apiKey) {
-            env.ANTHROPIC_API_KEY = apiKey;
+          // 1. First, try to get from user's stored API keys in database
+          const userApiKey = this.resolveUserApiKey(userId, 'anthropic');
+          if (userApiKey) {
+            env.ANTHROPIC_API_KEY = userApiKey;
+          } else {
+            // 2. Fall back to file-based key
+            const fileApiKey = await this.resolveAnthropicApiKey(homeDir);
+            if (fileApiKey) {
+              env.ANTHROPIC_API_KEY = fileApiKey;
+            }
           }
         }
 
@@ -204,11 +248,18 @@ export class PtyManager extends EventEmitter {
 
       // Codex-specific env/config
       if (terminal === 'codex') {
-        // If OPENAI_API_KEY is not provided, try ~/.openai/api_key
+        // API Key Resolution Priority: User DB > Environment Variable > File
         if (!env.OPENAI_API_KEY) {
-          const apiKey = await this.resolveOpenAIApiKey(homeDir);
-          if (apiKey) {
-            env.OPENAI_API_KEY = apiKey;
+          // 1. First, try to get from user's stored API keys in database
+          const userApiKey = this.resolveUserApiKey(userId, 'openai');
+          if (userApiKey) {
+            env.OPENAI_API_KEY = userApiKey;
+          } else {
+            // 2. Fall back to file-based key
+            const fileApiKey = await this.resolveOpenAIApiKey(homeDir);
+            if (fileApiKey) {
+              env.OPENAI_API_KEY = fileApiKey;
+            }
           }
         }
       }
