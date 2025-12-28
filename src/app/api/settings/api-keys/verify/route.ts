@@ -4,6 +4,13 @@ import { validateApiKeyFormat } from '@/server/crypto/encryption';
 import type { ApiKeyProvider, ApiKeyVerifyResponse } from '@/types/settings';
 import { API_KEY_PROVIDERS } from '@/types/settings';
 
+// API endpoint URLs for key verification
+const API_ENDPOINTS = {
+  ANTHROPIC: 'https://api.anthropic.com/v1/messages',
+  OPENAI: 'https://api.openai.com/v1/models',
+  GOOGLE: 'https://generativelanguage.googleapis.com/v1/models',
+} as const;
+
 /**
  * POST /api/settings/api-keys/verify
  * Verify that an API key is valid by making a test request to the provider
@@ -83,7 +90,7 @@ export async function POST(request: NextRequest) {
  */
 async function verifyAnthropicKey(apiKey: string): Promise<{ valid: boolean; error?: string }> {
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch(API_ENDPOINTS.ANTHROPIC, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -134,7 +141,7 @@ async function verifyAnthropicKey(apiKey: string): Promise<{ valid: boolean; err
  */
 async function verifyOpenAIKey(apiKey: string): Promise<{ valid: boolean; error?: string }> {
   try {
-    const response = await fetch('https://api.openai.com/v1/models', {
+    const response = await fetch(API_ENDPOINTS.OPENAI, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -179,7 +186,7 @@ async function verifyOpenAIKey(apiKey: string): Promise<{ valid: boolean; error?
 async function verifyGoogleKey(apiKey: string): Promise<{ valid: boolean; error?: string }> {
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`,
+      `${API_ENDPOINTS.GOOGLE}?key=${apiKey}`,
       { method: 'GET' }
     );
 

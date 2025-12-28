@@ -25,29 +25,13 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
 
   try {
-    // Check if the key exists and belongs to the user
-    const apiKey = apiKeyStore.getById(id);
-
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'API key not found' },
-        { status: 404 }
-      );
-    }
-
-    if (apiKey.userId !== auth.userId) {
-      return NextResponse.json(
-        { error: 'Access denied' },
-        { status: 403 }
-      );
-    }
-
+    // apiKeyStore.remove includes ownership verification
     const success = apiKeyStore.remove(id, auth.userId);
 
     if (!success) {
       return NextResponse.json(
-        { error: 'Failed to delete API key' },
-        { status: 500 }
+        { error: 'API key not found or access denied' },
+        { status: 404 }
       );
     }
 
@@ -80,24 +64,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const body = await request.json();
 
-    // Check if the key exists and belongs to the user
-    const existingKey = apiKeyStore.getById(id);
-
-    if (!existingKey) {
-      return NextResponse.json(
-        { error: 'API key not found' },
-        { status: 404 }
-      );
-    }
-
-    if (existingKey.userId !== auth.userId) {
-      return NextResponse.json(
-        { error: 'Access denied' },
-        { status: 403 }
-      );
-    }
-
-    // Currently only isActive can be updated
+    // Validate body first
     if (typeof body.isActive !== 'boolean') {
       return NextResponse.json(
         { error: 'isActive field is required and must be a boolean' },
@@ -105,12 +72,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    // apiKeyStore.setActive includes ownership verification
     const updatedKey = apiKeyStore.setActive(id, auth.userId, body.isActive);
 
     if (!updatedKey) {
       return NextResponse.json(
-        { error: 'Failed to update API key' },
-        { status: 500 }
+        { error: 'API key not found or access denied' },
+        { status: 404 }
       );
     }
 
