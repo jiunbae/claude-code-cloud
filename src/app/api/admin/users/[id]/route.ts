@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { userStore, requireAdmin, isErrorResponse } from '@/server/auth';
-import type { UserRole } from '@/types/auth';
+import { encryptCredentials, decryptCredentials } from '@/server/crypto';
+import type { UserRole, CredentialMode, UserCredentials } from '@/types/auth';
 
 interface UpdateUserRequest {
   username?: string;
   role?: UserRole;
   isActive?: boolean;
+  credentialMode?: CredentialMode;
+  credentials?: UserCredentials;
 }
 
 // GET /api/admin/users/[id] - Get user by ID (admin only)
@@ -115,8 +118,69 @@ export async function PATCH(
       );
     }
 
+    // Handle credential mode update
+    const { credentialMode, credentials } = body;
+
+    if (credentialMode !== undefined) {
+      if (credentialMode !== 'global' && credentialMode !== 'custom') {
+        return NextResponse.json(
+          { error: 'credentialMode must be either "global" or "custom"', field: 'credentialMode' },
+          { status: 400 }
+        );
+      }
+      userStore.updateCredentialMode(id, credentialMode);
+
+      // If switching to global, clear custom credentials
+      if (credentialMode === 'global') {
+        userStore.updateCredentials(id, null);
+      }
+    }
+
+    // Handle credentials update (only if mode is custom)
+    const currentMode = credentialMode || existingUser.credentialMode;
+    if (credentials && currentMode === 'custom') {
+      // Merge with existing credentials
+      let existingCredentials: UserCredentials = {};
+      const encryptedCredentials = userStore.getCredentials(id);
+      if (encryptedCredentials) {
+        try {
+          existingCredentials = decryptCredentials(encryptedCredentials);
+        } catch (error) {
+          console.error(`[Admin] Failed to decrypt credentials for user ${id}:`, error);
+          // Continue with empty credentials if decryption fails
+        }
+      }
+
+      // Merge: new values override existing
+      const mergedCredentials: UserCredentials = { ...existingCredentials, ...credentials };
+
+      // Remove null, undefined, or empty string values
+      for (const key of Object.keys(mergedCredentials)) {
+        if (!mergedCredentials[key]) {
+          delete mergedCredentials[key];
+        }
+      }
+
+      if (Object.keys(mergedCredentials).length > 0) {
+        const encrypted = encryptCredentials(mergedCredentials as Record<string, string>);
+        userStore.updateCredentials(id, encrypted);
+      } else {
+        userStore.updateCredentials(id, null);
+      }
+    }
+
+    // Fetch final updated user
+    const finalUser = userStore.getById(id);
+
+    if (!finalUser) {
+      return NextResponse.json(
+        { error: 'User not found after update' },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json({
-      user: userStore.toPublicUser(updatedUser),
+      user: userStore.toPublicUser(finalUser),
       message: 'User updated successfully',
     });
   } catch (error) {

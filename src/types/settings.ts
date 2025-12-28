@@ -9,10 +9,6 @@
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type Language = 'en' | 'ko' | 'ja' | 'zh';
 
-// Constants for validation - keep in sync with types above
-export const VALID_THEMES: ThemeMode[] = ['light', 'dark', 'system'];
-export const VALID_LANGUAGES: Language[] = ['en', 'ko', 'ja', 'zh'];
-
 export interface UserSettings {
   id: string;
   userId: string;
@@ -50,8 +46,7 @@ export interface UserSettingsUpdate {
 
 export type ApiKeyProvider = 'anthropic' | 'openai' | 'google';
 
-// Constants for validation - keep in sync with type above
-export const VALID_API_PROVIDERS: ApiKeyProvider[] = ['anthropic', 'openai', 'google'];
+export const API_KEY_PROVIDERS: readonly ApiKeyProvider[] = ['anthropic', 'openai', 'google'] as const;
 
 export interface ApiKey {
   id: string;

@@ -31,7 +31,11 @@ async function handleTerminalStart(
 ): Promise<void> {
   try {
     const data = await parseJsonBody(req);
-    const { projectPath, config } = data as { projectPath?: string; config?: Record<string, unknown> };
+    const { projectPath, config, userId } = data as {
+      projectPath?: string;
+      config?: Record<string, unknown>;
+      userId?: string;
+    };
 
     if (!projectPath) {
       sendJson(res, 400, { error: 'projectPath required' });
@@ -50,7 +54,8 @@ async function handleTerminalStart(
       return;
     }
 
-    const { pid } = await ptyManager.startSession(sessionId, projectPath, config || {}, terminal);
+    // Pass userId to enable user-specific API key resolution
+    const { pid } = await ptyManager.startSession(sessionId, projectPath, config || {}, terminal, userId);
     sendJson(res, 200, { success: true, pid });
   } catch (error) {
     console.error(`Failed to start ${terminal}:`, error);

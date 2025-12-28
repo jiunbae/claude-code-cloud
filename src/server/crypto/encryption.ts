@@ -12,6 +12,9 @@ const IV_LENGTH = 16; // 128 bits
 const AUTH_TAG_LENGTH = 16; // 128 bits
 const KEY_LENGTH = 32; // 256 bits
 
+// Memoized encryption key to avoid repeated parsing
+let cachedEncryptionKey: Buffer | null = null;
+
 /**
  * Encrypted data structure stored in the database
  */
@@ -23,34 +26,33 @@ export interface EncryptedData {
 
 /**
  * Get the encryption key from environment variable
- * The key should be a 64-character hex string (32 bytes)
+ * The key must be a 64-character hex string (32 bytes)
+ * Uses memoization to avoid repeated parsing
  */
 function getEncryptionKey(): Buffer {
+  if (cachedEncryptionKey) {
+    return cachedEncryptionKey;
+  }
+
   const key = process.env.ENCRYPTION_KEY;
 
   if (!key) {
     throw new Error(
       'ENCRYPTION_KEY environment variable is not set. ' +
-      'Generate a secure key with: openssl rand -hex 32'
+        'Generate a secure key with: openssl rand -hex 32'
     );
   }
 
-  // If key is hex-encoded (64 chars), decode it
+  // The key must be a 64-character hex string (32 bytes).
   if (key.length === 64 && /^[0-9a-fA-F]+$/.test(key)) {
-    return Buffer.from(key, 'hex');
+    cachedEncryptionKey = Buffer.from(key, 'hex');
+    return cachedEncryptionKey;
   }
 
-  // If key is raw 32 bytes, use directly
-  if (key.length === 32) {
-    return Buffer.from(key, 'utf8');
-  }
-
-  // Hash the key to get 32 bytes (less secure, but allows any length key)
-  console.warn(
-    'ENCRYPTION_KEY should be a 64-character hex string. ' +
-    'Using SHA-256 hash of the provided key instead.'
+  throw new Error(
+    'Invalid ENCRYPTION_KEY format. It must be a 64-character hex string. ' +
+      'Generate a secure key with: openssl rand -hex 32'
   );
-  return crypto.createHash('sha256').update(key).digest();
 }
 
 /**
@@ -117,9 +119,22 @@ export function serializeEncryptedData(data: EncryptedData): string {
 
 /**
  * Deserialize encrypted data from a JSON string
+ * Validates the structure to ensure data integrity
  */
 export function deserializeEncryptedData(json: string): EncryptedData {
-  return JSON.parse(json) as EncryptedData;
+  const data = JSON.parse(json);
+
+  // Type guard: validate the structure of the parsed data
+  if (
+    !data ||
+    typeof data.iv !== 'string' ||
+    typeof data.tag !== 'string' ||
+    typeof data.ciphertext !== 'string'
+  ) {
+    throw new Error('Invalid encrypted data format from database');
+  }
+
+  return data as EncryptedData;
 }
 
 /**
@@ -159,10 +174,10 @@ export function validateApiKeyFormat(key: string, provider: 'anthropic' | 'opena
       // OpenAI keys start with sk- or sk-proj-
       return (key.startsWith('sk-') || key.startsWith('sk-proj-')) && key.length > 20;
     case 'google':
-      // Google API keys are typically 39 characters
-      return key.length >= 30;
+      // Google AI keys don't have a consistent prefix, but we can check for a reasonable length.
+      return key.length > 30;
     default:
-      // Unknown provider - reject for safety
+      // This case should not be reachable with TypeScript if all providers are handled.
       return false;
   }
 }

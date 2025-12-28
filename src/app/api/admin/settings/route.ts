@@ -1,27 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin, isErrorResponse } from '@/server/auth';
 import { globalSettingsStore } from '@/server/settings';
-import type { GlobalSettings } from '@/types/settings';
-import { VALID_API_PROVIDERS } from '@/types/settings';
 
-// GET /api/admin/settings - Get global settings (admin only)
+// GET /api/admin/settings - Get all global settings (masked)
 export async function GET(request: NextRequest) {
   const auth = await requireAdmin(request);
-
-  if (isErrorResponse(auth)) {
-    return auth;
-  }
+  if (isErrorResponse(auth)) return auth;
 
   try {
-    const settings = globalSettingsStore.getAll();
-    const lastUpdated = globalSettingsStore.getLastUpdated();
+    const settings = globalSettingsStore.getAllWithDefaults();
 
     return NextResponse.json({
-      settings,
-      lastUpdated,
+      settings: settings.map((s) => ({
+        key: s.key,
+        hasValue: s.hasValue,
+        maskedValue: s.maskedValue,
+        description: s.description,
+        updatedAt: s.updatedAt.toISOString(),
+        updatedBy: s.updatedBy,
+      })),
     });
   } catch (error) {
-    console.error('Failed to get global settings:', error);
+    console.error('[Admin Settings] Error getting settings:', error);
     return NextResponse.json(
       { error: 'Failed to get settings' },
       { status: 500 }
@@ -29,119 +29,67 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// PUT /api/admin/settings - Update global settings (admin only)
-export async function PUT(request: NextRequest) {
+// POST /api/admin/settings - Create or update a setting
+export async function POST(request: NextRequest) {
   const auth = await requireAdmin(request);
-
-  if (isErrorResponse(auth)) {
-    return auth;
-  }
+  if (isErrorResponse(auth)) return auth;
 
   try {
     const body = await request.json();
-    const updates: Partial<GlobalSettings> = {};
+    const { key, value, description } = body as {
+      key?: string;
+      value?: string;
+      description?: string;
+    };
 
-    // Validate and extract allowed fields
-    if (body.allowRegistration !== undefined) {
-      updates.allowRegistration = Boolean(body.allowRegistration);
+    if (!key || typeof key !== 'string') {
+      return NextResponse.json(
+        { error: 'Key is required' },
+        { status: 400 }
+      );
     }
 
-    if (body.requireEmailVerification !== undefined) {
-      updates.requireEmailVerification = Boolean(body.requireEmailVerification);
+    if (!value || typeof value !== 'string') {
+      return NextResponse.json(
+        { error: 'Value is required' },
+        { status: 400 }
+      );
     }
 
-    if (body.maxUsersAllowed !== undefined) {
-      const max = Number(body.maxUsersAllowed);
-      if (isNaN(max) || max < 1 || max > 10000) {
-        return NextResponse.json(
-          { error: 'maxUsersAllowed must be between 1 and 10000', field: 'maxUsersAllowed' },
-          { status: 400 }
-        );
-      }
-      updates.maxUsersAllowed = max;
+    // Enforce a reasonable maximum length for setting values (10KB)
+    const MAX_VALUE_LENGTH = 10 * 1024;
+    if (value.length > MAX_VALUE_LENGTH) {
+      return NextResponse.json(
+        { error: 'Value is too long (max 10KB)' },
+        { status: 400 }
+      );
     }
 
-    if (body.defaultApiProvider !== undefined) {
-      if (!VALID_API_PROVIDERS.includes(body.defaultApiProvider)) {
-        return NextResponse.json(
-          { error: 'Invalid API provider', field: 'defaultApiProvider' },
-          { status: 400 }
-        );
-      }
-      updates.defaultApiProvider = body.defaultApiProvider;
+    // Validate key format (alphanumeric and underscores only)
+    if (!/^[A-Z][A-Z0-9_]*$/.test(key)) {
+      return NextResponse.json(
+        { error: 'Key must be uppercase alphanumeric with underscores' },
+        { status: 400 }
+      );
     }
 
-    if (body.allowUserApiKeys !== undefined) {
-      updates.allowUserApiKeys = Boolean(body.allowUserApiKeys);
-    }
+    const success = globalSettingsStore.set(key, value, auth.user.id, description);
 
-    if (body.requireApiKey !== undefined) {
-      updates.requireApiKey = Boolean(body.requireApiKey);
+    if (!success) {
+      return NextResponse.json(
+        { error: 'Failed to save setting' },
+        { status: 500 }
+      );
     }
-
-    if (body.maxSessionsPerUser !== undefined) {
-      const max = Number(body.maxSessionsPerUser);
-      if (isNaN(max) || max < 1 || max > 100) {
-        return NextResponse.json(
-          { error: 'maxSessionsPerUser must be between 1 and 100', field: 'maxSessionsPerUser' },
-          { status: 400 }
-        );
-      }
-      updates.maxSessionsPerUser = max;
-    }
-
-    if (body.sessionTimeoutMinutes !== undefined) {
-      const timeout = Number(body.sessionTimeoutMinutes);
-      if (isNaN(timeout) || timeout < 5 || timeout > 1440) {
-        return NextResponse.json(
-          { error: 'sessionTimeoutMinutes must be between 5 and 1440', field: 'sessionTimeoutMinutes' },
-          { status: 400 }
-        );
-      }
-      updates.sessionTimeoutMinutes = timeout;
-    }
-
-    if (body.skillsEnabled !== undefined) {
-      updates.skillsEnabled = Boolean(body.skillsEnabled);
-    }
-
-    if (body.allowUserSkillInstall !== undefined) {
-      updates.allowUserSkillInstall = Boolean(body.allowUserSkillInstall);
-    }
-
-    if (body.customBranding !== undefined) {
-      // Validate custom branding object
-      if (typeof body.customBranding !== 'object' || body.customBranding === null) {
-        return NextResponse.json(
-          { error: 'Invalid customBranding format', field: 'customBranding' },
-          { status: 400 }
-        );
-      }
-      // Validate and extract only string properties
-      updates.customBranding = {};
-      if (typeof body.customBranding.appName === 'string') {
-        updates.customBranding.appName = body.customBranding.appName;
-      }
-      if (typeof body.customBranding.logoUrl === 'string') {
-        updates.customBranding.logoUrl = body.customBranding.logoUrl;
-      }
-      if (typeof body.customBranding.primaryColor === 'string') {
-        updates.customBranding.primaryColor = body.customBranding.primaryColor;
-      }
-    }
-
-    const settings = globalSettingsStore.updateMany(updates, auth.userId);
-    const lastUpdated = globalSettingsStore.getLastUpdated();
 
     return NextResponse.json({
-      settings,
-      lastUpdated,
-      message: 'Settings updated',
+      message: 'Setting saved successfully',
+      key,
     });
   } catch (error) {
-    console.error('Failed to update global settings:', error);
+    console.error('[Admin Settings] Error saving setting:', error);
     return NextResponse.json(
-      { error: 'Failed to update settings' },
+      { error: 'Failed to save setting' },
       { status: 500 }
     );
   }
