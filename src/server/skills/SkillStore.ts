@@ -232,11 +232,37 @@ class SkillStore {
   }
 
   /**
-   * Get skill count
+   * Get skill count (simple total)
    */
   getSkillCount(): number {
     const stmt = this.db.prepare(`SELECT COUNT(*) as count FROM skill_registry`);
     const result = stmt.get() as { count: number };
+    return result.count;
+  }
+
+  /**
+   * Get skill count with filters (for pagination)
+   */
+  getFilteredSkillCount(params?: SkillSearchParams): number {
+    let query = `SELECT COUNT(*) as count FROM skill_registry WHERE 1=1`;
+    const values: unknown[] = [];
+
+    if (params?.category) {
+      query += ` AND category = ?`;
+      values.push(params.category);
+    }
+    if (params?.isSystem !== undefined) {
+      query += ` AND is_system = ?`;
+      values.push(params.isSystem ? 1 : 0);
+    }
+    if (params?.query) {
+      query += ` AND (name LIKE ? OR display_name LIKE ? OR description LIKE ? OR keywords LIKE ?)`;
+      const searchTerm = `%${params.query}%`;
+      values.push(searchTerm, searchTerm, searchTerm, searchTerm);
+    }
+
+    const stmt = this.db.prepare(query);
+    const result = stmt.get(...values) as { count: number };
     return result.count;
   }
 

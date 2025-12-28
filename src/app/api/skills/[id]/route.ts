@@ -88,6 +88,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const skills = skillManager.getUserSkillsWithDetails(auth.userId);
     const skill = skills.find((s) => s.name === skillName);
 
+    if (!skill) {
+      return NextResponse.json(
+        { error: 'Skill not found after update' },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json({ skill });
   } catch (error) {
     console.error('Failed to update skill:', error);

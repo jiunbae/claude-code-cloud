@@ -24,19 +24,27 @@ export async function GET(request: NextRequest) {
     const limit = searchParams.get('limit');
     const offset = searchParams.get('offset');
 
-    const params = {
+    // Filter params without pagination for counting
+    const filterParams = {
       query,
       category,
       isSystem: isSystem !== null ? isSystem === 'true' : undefined,
+    };
+
+    // Params with pagination for fetching
+    const params = {
+      ...filterParams,
       limit: limit ? parseInt(limit, 10) : undefined,
       offset: offset ? parseInt(offset, 10) : undefined,
     };
 
     const skills = skillManager.getAvailableSkills(params);
+    // Get total count without pagination for accurate pagination info
+    const total = skillManager.getSkillCount(filterParams);
 
     const response: SkillListResponse = {
       skills,
-      total: skills.length,
+      total,
     };
 
     return NextResponse.json(response, {

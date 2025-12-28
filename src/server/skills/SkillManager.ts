@@ -123,6 +123,13 @@ class SkillManager {
   }
 
   /**
+   * Get total count of skills matching filter criteria (for pagination)
+   */
+  getSkillCount(params?: SkillSearchParams): number {
+    return skillStore.getFilteredSkillCount(params);
+  }
+
+  /**
    * Get skill by name
    */
   getSkill(name: string): Skill | null {

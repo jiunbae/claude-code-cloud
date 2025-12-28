@@ -36,6 +36,7 @@ export default function SkillManager() {
   const [filterTab, setFilterTab] = useState<FilterTab>('all');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Filter skills based on search, category, and tab
   const filteredSkills = skills.filter((skill) => {
@@ -94,19 +95,40 @@ export default function SkillManager() {
 
   const handleSync = useCallback(async () => {
     setSyncing(true);
+    setSyncMessage(null);
     try {
       const result = await syncSkills();
       if (result) {
         const { added, updated, removed, errors } = result;
         const messages: string[] = [];
-        if (added.length > 0) messages.push(`Added: ${added.length}`);
-        if (updated.length > 0) messages.push(`Updated: ${updated.length}`);
-        if (removed.length > 0) messages.push(`Removed: ${removed.length}`);
-        if (errors.length > 0) messages.push(`Errors: ${errors.length}`);
-        if (messages.length > 0) {
-          console.log('Sync completed:', messages.join(', '));
+        if (added.length > 0) messages.push(`${added.length} added`);
+        if (updated.length > 0) messages.push(`${updated.length} updated`);
+        if (removed.length > 0) messages.push(`${removed.length} removed`);
+
+        if (errors.length > 0) {
+          setSyncMessage({
+            type: 'error',
+            text: `Sync completed with ${errors.length} error(s). ${messages.join(', ')}`,
+          });
+        } else if (messages.length > 0) {
+          setSyncMessage({
+            type: 'success',
+            text: `Sync completed: ${messages.join(', ')}`,
+          });
+        } else {
+          setSyncMessage({
+            type: 'success',
+            text: 'Sync completed: No changes detected',
+          });
         }
+        // Auto-hide message after 5 seconds
+        setTimeout(() => setSyncMessage(null), 5000);
       }
+    } catch (err) {
+      setSyncMessage({
+        type: 'error',
+        text: `Sync failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      });
     } finally {
       setSyncing(false);
     }
@@ -131,9 +153,10 @@ export default function SkillManager() {
             onClick={handleSync}
             disabled={syncing}
             className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-medium disabled:opacity-50 transition-colors flex items-center gap-2"
+            title="Scan filesystem and sync skill registry"
           >
             <svg
-              className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`}
+              className={`w-4 h-4 ${syncing ? 'animate-pulse' : ''}`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -142,7 +165,7 @@ export default function SkillManager() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
               />
             </svg>
             {syncing ? 'Syncing...' : 'Sync'}
@@ -151,9 +174,9 @@ export default function SkillManager() {
             onClick={refreshSkills}
             disabled={isLoading}
             className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
-            title="Refresh"
+            title="Refresh list"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -164,6 +187,27 @@ export default function SkillManager() {
           </button>
         </div>
       </div>
+
+      {/* Sync Message */}
+      {syncMessage && (
+        <div
+          className={`p-4 rounded-lg text-sm flex items-center justify-between ${
+            syncMessage.type === 'success'
+              ? 'bg-green-500/10 border border-green-500/30 text-green-400'
+              : 'bg-red-500/10 border border-red-500/30 text-red-400'
+          }`}
+        >
+          <span>{syncMessage.text}</span>
+          <button
+            onClick={() => setSyncMessage(null)}
+            className="ml-2 hover:opacity-70"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* Error */}
       {error && (
