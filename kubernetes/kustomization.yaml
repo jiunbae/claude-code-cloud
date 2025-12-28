@@ -15,6 +15,8 @@ commonLabels:
   app: claude-code-cloud
   managed-by: kustomize
 
+# Image tag is dynamically set by CI/CD pipeline using:
+# kustomize edit set image registry.jiun.dev/claude-code-cloud:$GITHUB_SHA
 images:
   - name: registry.jiun.dev/claude-code-cloud
-    newTag: latest
+    newTag: latest  # Overridden by CI/CD with git SHA

@@ -61,19 +61,13 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          # Update image tag in kustomization
-          cd ${{ github.workspace }}
+          cd ${{ github.workspace }}/kubernetes
 
-          # Apply manifests using kubectl (kustomize is built-in)
-          kubectl apply -k https://github.com/${{ github.repository }}.git//kubernetes?ref=${{ github.sha }} \
-            --namespace=claude-code-cloud \
-            --prune \
-            --selector=app=claude-code-cloud || \
-          kubectl apply -k https://github.com/${{ github.repository }}.git//kubernetes?ref=${{ github.sha }} \
-            --namespace=claude-code-cloud
+          # Update image tag to current git SHA (immutable tag)
+          kustomize edit set image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
-          # Restart deployment to pull new image
-          kubectl rollout restart deployment/claude-code-cloud -n claude-code-cloud
+          # Apply manifests
+          kubectl apply -k . --namespace=claude-code-cloud
 
           # Wait for rollout to complete
           kubectl rollout status deployment/claude-code-cloud -n claude-code-cloud --timeout=300s

@@ -9,8 +9,6 @@ data:
   PORT: "3000"
   WS_PORT: "3001"
   PTY_API_PORT: "3003"
-  PUID: "1000"
-  PGID: "1000"
   TZ: "Asia/Seoul"
   NEXT_PUBLIC_WS_PROTOCOL: "wss"
   NEXT_PUBLIC_WS_HOST: "claude.jiun.dev"

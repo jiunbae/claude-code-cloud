@@ -11,13 +11,13 @@ spec:
   ports:
     - name: http
       port: 3000
-      targetPort: 3000
+      targetPort: http
       protocol: TCP
     - name: websocket
       port: 3001
-      targetPort: 3001
+      targetPort: websocket
       protocol: TCP
     - name: pty-api
       port: 3003
-      targetPort: 3003
+      targetPort: pty-api
       protocol: TCP
