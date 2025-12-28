@@ -122,6 +122,8 @@ export default function Terminal({
               message.data.forEach((line: string) => {
                 xtermRef.current?.writeln(line);
               });
+              // Scroll to bottom after loading scrollback history
+              xtermRef.current?.scrollToBottom();
             }
             break;
 
