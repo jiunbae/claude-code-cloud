@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { ApiKey, ApiKeyProvider } from '@/types/settings';
 import ApiKeyCard from './ApiKeyCard';
 import AddApiKeyModal from './AddApiKeyModal';
@@ -104,8 +104,21 @@ export default function ApiKeyManager({ initialFilter = 'all' }: ApiKeyManagerPr
     ? apiKeys
     : apiKeys.filter((key) => key.provider === filter);
 
-  const getKeyCountByProvider = (provider: ApiKeyProvider) =>
-    apiKeys.filter((key) => key.provider === provider).length;
+  // Memoized key counts to avoid recalculating on every render
+  const keyCountsByProvider = useMemo(() => {
+    const counts: Record<ApiKeyProvider | 'all', number> = {
+      anthropic: 0,
+      openai: 0,
+      google: 0,
+      all: apiKeys.length,
+    };
+
+    for (const key of apiKeys) {
+      counts[key.provider]++;
+    }
+
+    return counts;
+  }, [apiKeys]);
 
   return (
     <div className="space-y-6">
@@ -138,7 +151,7 @@ export default function ApiKeyManager({ initialFilter = 'all' }: ApiKeyManagerPr
               : 'text-gray-400 hover:text-white hover:bg-gray-800'
           }`}
         >
-          All ({apiKeys.length})
+          All ({keyCountsByProvider.all})
         </button>
         <button
           onClick={() => setFilter('anthropic')}
@@ -148,7 +161,7 @@ export default function ApiKeyManager({ initialFilter = 'all' }: ApiKeyManagerPr
               : 'text-gray-400 hover:text-orange-400 hover:bg-orange-500/10'
           }`}
         >
-          Anthropic ({getKeyCountByProvider('anthropic')})
+          Anthropic ({keyCountsByProvider.anthropic})
         </button>
         <button
           onClick={() => setFilter('openai')}
@@ -158,7 +171,7 @@ export default function ApiKeyManager({ initialFilter = 'all' }: ApiKeyManagerPr
               : 'text-gray-400 hover:text-green-400 hover:bg-green-500/10'
           }`}
         >
-          OpenAI ({getKeyCountByProvider('openai')})
+          OpenAI ({keyCountsByProvider.openai})
         </button>
         <button
           onClick={() => setFilter('google')}
@@ -168,7 +181,7 @@ export default function ApiKeyManager({ initialFilter = 'all' }: ApiKeyManagerPr
               : 'text-gray-400 hover:text-blue-400 hover:bg-blue-500/10'
           }`}
         >
-          Google ({getKeyCountByProvider('google')})
+          Google ({keyCountsByProvider.google})
         </button>
       </div>
 

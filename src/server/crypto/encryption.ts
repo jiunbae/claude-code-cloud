@@ -23,7 +23,7 @@ export interface EncryptedData {
 
 /**
  * Get the encryption key from environment variable
- * The key should be a 64-character hex string (32 bytes)
+ * The key must be a 64-character hex string (32 bytes)
  */
 function getEncryptionKey(): Buffer {
   const key = process.env.ENCRYPTION_KEY;
@@ -31,21 +31,15 @@ function getEncryptionKey(): Buffer {
   if (!key) {
     throw new Error(
       'ENCRYPTION_KEY environment variable is not set. ' +
-      'Generate a secure key with: openssl rand -hex 32'
+        'Generate a secure key with: openssl rand -hex 32'
     );
   }
 
-  // If key is hex-encoded (64 chars), decode it
+  // The key must be a 64-character hex string (32 bytes).
   if (key.length === 64 && /^[0-9a-fA-F]+$/.test(key)) {
     return Buffer.from(key, 'hex');
   }
 
-  // If key is raw 32 bytes, use directly
-  if (key.length === 32) {
-    return Buffer.from(key, 'utf8');
-  }
-
-  // The key must be a 32-byte value. A 64-character hex string is expected.
   throw new Error(
     'Invalid ENCRYPTION_KEY format. It must be a 64-character hex string. ' +
       'Generate a secure key with: openssl rand -hex 32'

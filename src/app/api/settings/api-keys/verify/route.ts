@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthContext } from '@/server/auth';
 import { validateApiKeyFormat } from '@/server/crypto/encryption';
 import type { ApiKeyProvider, ApiKeyVerifyResponse } from '@/types/settings';
+import { API_KEY_PROVIDERS } from '@/types/settings';
 
 /**
  * POST /api/settings/api-keys/verify
@@ -28,15 +29,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!provider || !['anthropic', 'openai', 'google'].includes(provider)) {
+    if (!provider || !API_KEY_PROVIDERS.includes(provider)) {
       return NextResponse.json(
-        { error: 'Valid provider is required (anthropic, openai, or google)' },
+        { error: `Valid provider is required. Must be one of: ${API_KEY_PROVIDERS.join(', ')}` },
         { status: 400 }
       );
     }
 
     // Validate format first
-    if (provider !== 'google' && !validateApiKeyFormat(apiKey, provider)) {
+    if (!validateApiKeyFormat(apiKey, provider)) {
       const response: ApiKeyVerifyResponse = {
         valid: false,
         provider,

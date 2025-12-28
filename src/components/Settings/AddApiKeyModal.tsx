@@ -19,6 +19,15 @@ export default function AddApiKeyModal({ isOpen, onClose, onSuccess }: AddApiKey
   const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState<boolean | null>(null);
 
+  const resetForm = () => {
+    setProvider('anthropic');
+    setKeyName('');
+    setApiKey('');
+    setError('');
+    setFieldError(null);
+    setVerified(null);
+  };
+
   const handleVerify = async () => {
     if (!apiKey.trim()) {
       setError('Please enter an API key first');
@@ -76,13 +85,7 @@ export default function AddApiKeyModal({ isOpen, onClose, onSuccess }: AddApiKey
       const data = await response.json();
 
       if (response.ok) {
-        // Reset form
-        setProvider('anthropic');
-        setKeyName('');
-        setApiKey('');
-        setVerified(null);
-        setError('');
-        setFieldError(null);
+        resetForm();
         onSuccess();
         onClose();
       } else {
@@ -97,12 +100,7 @@ export default function AddApiKeyModal({ isOpen, onClose, onSuccess }: AddApiKey
   };
 
   const handleClose = () => {
-    setProvider('anthropic');
-    setKeyName('');
-    setApiKey('');
-    setError('');
-    setFieldError(null);
-    setVerified(null);
+    resetForm();
     onClose();
   };
 
