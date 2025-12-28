@@ -7,6 +7,7 @@ import path from 'path';
 import type { SessionConfig, SessionStatus, TerminalKind } from '@/types';
 import { apiKeyStore } from '@/server/settings/ApiKeyStore';
 import { isEncryptionConfigured } from '@/server/crypto/encryption';
+import { resolveCredentials, getClaudeConfigDir, logCredentialAccess } from '../session/CredentialResolver';
 
 interface PtySession {
   pty: IPty;
@@ -224,39 +225,74 @@ export class PtyManager extends EventEmitter {
           break;
       }
 
+      // Resolve admin credentials based on user and session config
+      const credentialResult = resolveCredentials(userId, config.env);
+
       // Claude-specific env/config
       if (terminal === 'claude') {
-        // API Key Resolution Priority: User DB > Environment Variable > File
-        // User's stored API key always takes precedence
+        // API Key Resolution Priority:
+        // 1. User's personal API keys (from database)
+        // 2. Admin-configured credentials (from global settings)
+        // 3. File-based key fallback
         const userApiKey = this.resolveUserApiKey(userId, 'anthropic');
         if (userApiKey) {
           env.ANTHROPIC_API_KEY = userApiKey;
+        } else if (credentialResult.credentials.ANTHROPIC_API_KEY) {
+          env.ANTHROPIC_API_KEY = credentialResult.credentials.ANTHROPIC_API_KEY;
         } else if (!env.ANTHROPIC_API_KEY) {
-          // Fall back to file-based key if not in user DB and not in env
-          const fileApiKey = await this.resolveAnthropicApiKey(homeDir);
-          if (fileApiKey) {
-            env.ANTHROPIC_API_KEY = fileApiKey;
+          // Fallback to file-based key
+          const apiKey = await this.resolveAnthropicApiKey(homeDir);
+          if (apiKey) {
+            env.ANTHROPIC_API_KEY = apiKey;
           }
         }
 
-        // Ensure Claude CLI config directory is writable; fall back if necessary
-        const claudeConfigDir = await this.resolveClaudeConfigDir(homeDir);
+        // Set Claude config directory based on user (for isolation)
+        const claudeConfigDir = userId
+          ? getClaudeConfigDir(userId)
+          : await this.resolveClaudeConfigDir(homeDir);
+
+        // Ensure directory exists
+        try {
+          await fs.mkdir(claudeConfigDir, { recursive: true });
+        } catch (error) {
+          const err = error as NodeJS.ErrnoException;
+          // Ignore "already exists" errors, but log others
+          if (err.code !== 'EEXIST') {
+            console.error(`[PTY] Failed to create config directory ${claudeConfigDir}:`, error);
+          }
+        }
+
         env.CLAUDE_CONFIG_DIR = claudeConfigDir;
+
+        // Log credential access for audit
+        if (userId) {
+          logCredentialAccess(userId, sessionId, credentialResult.source);
+        }
       }
 
       // Codex-specific env/config
       if (terminal === 'codex') {
-        // API Key Resolution Priority: User DB > Environment Variable > File
-        // User's stored API key always takes precedence
+        // API Key Resolution Priority:
+        // 1. User's personal API keys (from database)
+        // 2. Admin-configured credentials (from global settings)
+        // 3. File-based key fallback
         const userApiKey = this.resolveUserApiKey(userId, 'openai');
         if (userApiKey) {
           env.OPENAI_API_KEY = userApiKey;
+        } else if (credentialResult.credentials.OPENAI_API_KEY) {
+          env.OPENAI_API_KEY = credentialResult.credentials.OPENAI_API_KEY;
         } else if (!env.OPENAI_API_KEY) {
-          // Fall back to file-based key if not in user DB and not in env
-          const fileApiKey = await this.resolveOpenAIApiKey(homeDir);
-          if (fileApiKey) {
-            env.OPENAI_API_KEY = fileApiKey;
+          // Fallback to file-based key
+          const apiKey = await this.resolveOpenAIApiKey(homeDir);
+          if (apiKey) {
+            env.OPENAI_API_KEY = apiKey;
           }
+        }
+
+        // Log credential access for audit
+        if (userId) {
+          logCredentialAccess(userId, sessionId, credentialResult.source);
         }
       }
 

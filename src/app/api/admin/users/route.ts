@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { userStore, hashPassword, validatePassword, requireAdmin, isErrorResponse } from '@/server/auth';
-import type { UserRole } from '@/types/auth';
+import { encryptCredentials } from '@/server/crypto';
+import type { UserRole, CredentialMode, UserCredentials } from '@/types/auth';
 
 interface CreateUserRequest {
   email: string;
   username: string;
   password: string;
   role?: UserRole;
+  credentialMode?: CredentialMode;
+  credentials?: UserCredentials;
 }
 
 // GET /api/admin/users - Get all users (admin only)
@@ -101,8 +104,43 @@ export async function POST(request: NextRequest) {
     const passwordHash = await hashPassword(password);
     const user = userStore.create(email, username, passwordHash, role);
 
+    // Handle credential mode and credentials
+    const credentialMode = body.credentialMode || 'global';
+    if (credentialMode !== 'global' && credentialMode !== 'custom') {
+      return NextResponse.json(
+        { error: 'credentialMode must be either "global" or "custom"', field: 'credentialMode' },
+        { status: 400 }
+      );
+    }
+
+    userStore.updateCredentialMode(user.id, credentialMode);
+
+    // If custom mode with credentials, save them
+    if (credentialMode === 'custom' && body.credentials) {
+      const cleanCredentials: Record<string, string> = {};
+      for (const [key, value] of Object.entries(body.credentials)) {
+        if (value && typeof value === 'string') {
+          cleanCredentials[key] = value;
+        }
+      }
+      if (Object.keys(cleanCredentials).length > 0) {
+        const encrypted = encryptCredentials(cleanCredentials);
+        userStore.updateCredentials(user.id, encrypted);
+      }
+    }
+
+    // Fetch updated user
+    const updatedUser = userStore.getById(user.id);
+
+    if (!updatedUser) {
+      return NextResponse.json(
+        { error: 'Failed to retrieve user after creation' },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json({
-      user: userStore.toPublicUser(user),
+      user: userStore.toPublicUser(updatedUser),
       message: 'User created successfully',
     }, { status: 201 });
   } catch (error) {
