@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: claude-code-cloud
+  labels:
+    app: claude-code-cloud
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: claude-code-cloud
+  template:
+    metadata:
+      labels:
+        app: claude-code-cloud
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: claude-code-cloud
+          image: registry.jiun.dev/claude-code-cloud:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+            - name: websocket
+              containerPort: 3001
+              protocol: TCP
+            - name: pty-api
+              containerPort: 3003
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: claude-code-cloud-config
+          env:
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: claude-code-cloud-secrets
+                  key: jwt-secret
+            - name: ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: claude-code-cloud-secrets
+                  key: admin-email
+            - name: ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: claude-code-cloud-secrets
+                  key: admin-username
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: claude-code-cloud-secrets
+                  key: admin-password
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: claude-code-cloud-secrets
+                  key: anthropic-api-key
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: claude-code-cloud-secrets
+                  key: openai-api-key
+                  optional: true
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+            - name: workspace
+              mountPath: /workspace
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "4Gi"
+              cpu: "2000m"
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 30
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: claude-code-cloud-data
+        - name: workspace
+          persistentVolumeClaim:
+            claimName: claude-code-cloud-workspace

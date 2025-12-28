@@ -1,4 +1,4 @@
-name: Deploy to Synology NAS
+name: Deploy to Kubernetes
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:  # 수동 실행 가능
 
 env:
-  REGISTRY: registry.im-si.org
+  REGISTRY: registry.jiun.dev
   IMAGE_NAME: claude-code-cloud
 
 jobs:
@@ -48,42 +48,37 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Copy docker-compose.yml to NAS
-        uses: appleboy/scp-action@v0.1.7
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
         with:
-          host: ${{ secrets.NAS_HOST }}
-          port: ${{ secrets.NAS_SSH_PORT }}
-          username: ${{ secrets.NAS_USERNAME }}
-          key: ${{ secrets.NAS_SSH_KEY }}
-          source: "docker-compose.yml"
-          target: ${{ secrets.NAS_DEPLOY_PATH }}
+          version: 'v1.31.0'
 
-      - name: Deploy to Synology NAS
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.NAS_HOST }}
-          port: ${{ secrets.NAS_SSH_PORT }}
-          username: ${{ secrets.NAS_USERNAME }}
-          key: ${{ secrets.NAS_SSH_KEY }}
-          script: |
-            set -e
+      - name: Configure kubectl
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
 
-            # Find docker binary
-            DOCKER_BIN=""
-            for p in /usr/local/bin/docker /usr/bin/docker /volume1/@appstore/ContainerManager/usr/bin/docker; do
-              if [ -x "$p" ]; then
-                DOCKER_BIN="$p"
-                break
-              fi
-            done
+      - name: Deploy to Kubernetes
+        run: |
+          # Update image tag in kustomization
+          cd ${{ github.workspace }}
 
-            if [ -z "$DOCKER_BIN" ]; then
-              echo "ERROR: docker not found"
-              exit 1
-            fi
+          # Apply manifests using kubectl (kustomize is built-in)
+          kubectl apply -k https://github.com/${{ github.repository }}.git//kubernetes?ref=${{ github.sha }} \
+            --namespace=claude-code-cloud \
+            --prune \
+            --selector=app=claude-code-cloud || \
+          kubectl apply -k https://github.com/${{ github.repository }}.git//kubernetes?ref=${{ github.sha }} \
+            --namespace=claude-code-cloud
 
-            cd "${{ secrets.NAS_DEPLOY_PATH }}"
+          # Restart deployment to pull new image
+          kubectl rollout restart deployment/claude-code-cloud -n claude-code-cloud
 
-            sudo -n -- "$DOCKER_BIN" compose pull
-            sudo -n -- "$DOCKER_BIN" compose up -d
-            sudo -n -- "$DOCKER_BIN" image prune -f
+          # Wait for rollout to complete
+          kubectl rollout status deployment/claude-code-cloud -n claude-code-cloud --timeout=300s
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n claude-code-cloud -l app=claude-code-cloud
+          kubectl get svc -n claude-code-cloud
