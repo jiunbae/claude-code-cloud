@@ -19,4 +19,4 @@ commonLabels:
 # kustomize edit set image registry.jiun.dev/claude-code-cloud:$GITHUB_SHA
 images:
   - name: registry.jiun.dev/claude-code-cloud
-    newTag: latest  # Overridden by CI/CD with git SHA
+    newTag: dev  # Overridden by CI/CD with git SHA
