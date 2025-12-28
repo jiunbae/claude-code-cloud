@@ -12,6 +12,9 @@ const IV_LENGTH = 16; // 128 bits
 const AUTH_TAG_LENGTH = 16; // 128 bits
 const KEY_LENGTH = 32; // 256 bits
 
+// Memoized encryption key to avoid repeated parsing
+let cachedEncryptionKey: Buffer | null = null;
+
 /**
  * Encrypted data structure stored in the database
  */
@@ -24,8 +27,13 @@ export interface EncryptedData {
 /**
  * Get the encryption key from environment variable
  * The key must be a 64-character hex string (32 bytes)
+ * Uses memoization to avoid repeated parsing
  */
 function getEncryptionKey(): Buffer {
+  if (cachedEncryptionKey) {
+    return cachedEncryptionKey;
+  }
+
   const key = process.env.ENCRYPTION_KEY;
 
   if (!key) {
@@ -37,7 +45,8 @@ function getEncryptionKey(): Buffer {
 
   // The key must be a 64-character hex string (32 bytes).
   if (key.length === 64 && /^[0-9a-fA-F]+$/.test(key)) {
-    return Buffer.from(key, 'hex');
+    cachedEncryptionKey = Buffer.from(key, 'hex');
+    return cachedEncryptionKey;
   }
 
   throw new Error(
@@ -110,9 +119,22 @@ export function serializeEncryptedData(data: EncryptedData): string {
 
 /**
  * Deserialize encrypted data from a JSON string
+ * Validates the structure to ensure data integrity
  */
 export function deserializeEncryptedData(json: string): EncryptedData {
-  return JSON.parse(json) as EncryptedData;
+  const data = JSON.parse(json);
+
+  // Type guard: validate the structure of the parsed data
+  if (
+    !data ||
+    typeof data.iv !== 'string' ||
+    typeof data.tag !== 'string' ||
+    typeof data.ciphertext !== 'string'
+  ) {
+    throw new Error('Invalid encrypted data format from database');
+  }
+
+  return data as EncryptedData;
 }
 
 /**

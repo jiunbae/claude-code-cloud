@@ -105,6 +105,14 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[API Keys] Failed to add key:', error);
 
+    // Handle JSON parsing error (invalid request body)
+    if (error instanceof SyntaxError) {
+      return NextResponse.json(
+        { error: 'Invalid JSON format in request body' },
+        { status: 400 }
+      );
+    }
+
     // Check for duplicate key error
     if (error instanceof DuplicateKeyError) {
       return NextResponse.json(
