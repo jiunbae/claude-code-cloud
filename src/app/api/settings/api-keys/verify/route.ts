@@ -101,7 +101,18 @@ async function verifyAnthropicKey(apiKey: string): Promise<{ valid: boolean; err
       return { valid: true };
     }
 
-    const data = await response.json();
+    // Rate limited means key is valid
+    if (response.status === 429) {
+      return { valid: true };
+    }
+
+    // Parse JSON response safely
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      return { valid: false, error: `Received non-JSON response from API (status: ${response.status})` };
+    }
 
     if (response.status === 401) {
       return { valid: false, error: 'Invalid API key' };
@@ -109,11 +120,6 @@ async function verifyAnthropicKey(apiKey: string): Promise<{ valid: boolean; err
 
     if (response.status === 403) {
       return { valid: false, error: 'API key does not have permission to access this resource' };
-    }
-
-    // Other errors (rate limit, etc.) mean the key is valid but might have usage restrictions
-    if (response.status === 429) {
-      return { valid: true }; // Rate limited means key is valid
     }
 
     return { valid: false, error: data.error?.message || 'Unknown error' };
@@ -139,7 +145,18 @@ async function verifyOpenAIKey(apiKey: string): Promise<{ valid: boolean; error?
       return { valid: true };
     }
 
-    const data = await response.json();
+    // Rate limited means key is valid
+    if (response.status === 429) {
+      return { valid: true };
+    }
+
+    // Parse JSON response safely
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      return { valid: false, error: `Received non-JSON response from API (status: ${response.status})` };
+    }
 
     if (response.status === 401) {
       return { valid: false, error: 'Invalid API key' };
@@ -147,11 +164,6 @@ async function verifyOpenAIKey(apiKey: string): Promise<{ valid: boolean; error?
 
     if (response.status === 403) {
       return { valid: false, error: 'API key does not have permission to access this resource' };
-    }
-
-    // Rate limited means key is valid
-    if (response.status === 429) {
-      return { valid: true };
     }
 
     return { valid: false, error: data.error?.message || 'Unknown error' };
@@ -175,15 +187,21 @@ async function verifyGoogleKey(apiKey: string): Promise<{ valid: boolean; error?
       return { valid: true };
     }
 
-    const data = await response.json();
-
-    if (response.status === 400 || response.status === 401 || response.status === 403) {
-      return { valid: false, error: data.error?.message || 'Invalid API key' };
-    }
-
     // Rate limited means key is valid
     if (response.status === 429) {
       return { valid: true };
+    }
+
+    // Parse JSON response safely
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      return { valid: false, error: `Received non-JSON response from API (status: ${response.status})` };
+    }
+
+    if (response.status === 400 || response.status === 401 || response.status === 403) {
+      return { valid: false, error: data.error?.message || 'Invalid API key' };
     }
 
     return { valid: false, error: data.error?.message || 'Unknown error' };

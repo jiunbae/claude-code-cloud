@@ -227,17 +227,15 @@ export class PtyManager extends EventEmitter {
       // Claude-specific env/config
       if (terminal === 'claude') {
         // API Key Resolution Priority: User DB > Environment Variable > File
-        if (!env.ANTHROPIC_API_KEY) {
-          // 1. First, try to get from user's stored API keys in database
-          const userApiKey = this.resolveUserApiKey(userId, 'anthropic');
-          if (userApiKey) {
-            env.ANTHROPIC_API_KEY = userApiKey;
-          } else {
-            // 2. Fall back to file-based key
-            const fileApiKey = await this.resolveAnthropicApiKey(homeDir);
-            if (fileApiKey) {
-              env.ANTHROPIC_API_KEY = fileApiKey;
-            }
+        // User's stored API key always takes precedence
+        const userApiKey = this.resolveUserApiKey(userId, 'anthropic');
+        if (userApiKey) {
+          env.ANTHROPIC_API_KEY = userApiKey;
+        } else if (!env.ANTHROPIC_API_KEY) {
+          // Fall back to file-based key if not in user DB and not in env
+          const fileApiKey = await this.resolveAnthropicApiKey(homeDir);
+          if (fileApiKey) {
+            env.ANTHROPIC_API_KEY = fileApiKey;
           }
         }
 
@@ -249,17 +247,15 @@ export class PtyManager extends EventEmitter {
       // Codex-specific env/config
       if (terminal === 'codex') {
         // API Key Resolution Priority: User DB > Environment Variable > File
-        if (!env.OPENAI_API_KEY) {
-          // 1. First, try to get from user's stored API keys in database
-          const userApiKey = this.resolveUserApiKey(userId, 'openai');
-          if (userApiKey) {
-            env.OPENAI_API_KEY = userApiKey;
-          } else {
-            // 2. Fall back to file-based key
-            const fileApiKey = await this.resolveOpenAIApiKey(homeDir);
-            if (fileApiKey) {
-              env.OPENAI_API_KEY = fileApiKey;
-            }
+        // User's stored API key always takes precedence
+        const userApiKey = this.resolveUserApiKey(userId, 'openai');
+        if (userApiKey) {
+          env.OPENAI_API_KEY = userApiKey;
+        } else if (!env.OPENAI_API_KEY) {
+          // Fall back to file-based key if not in user DB and not in env
+          const fileApiKey = await this.resolveOpenAIApiKey(homeDir);
+          if (fileApiKey) {
+            env.OPENAI_API_KEY = fileApiKey;
           }
         }
       }

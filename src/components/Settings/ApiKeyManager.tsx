@@ -35,7 +35,8 @@ export default function ApiKeyManager({ initialFilter = 'all' }: ApiKeyManagerPr
       } else {
         setError(data.error || 'Failed to load API keys');
       }
-    } catch {
+    } catch (err) {
+      console.error('Failed to load API keys:', err);
       setError('Failed to load API keys');
     } finally {
       if (showLoading) {
@@ -65,7 +66,8 @@ export default function ApiKeyManager({ initialFilter = 'all' }: ApiKeyManagerPr
       } else {
         setError(data.error || 'Failed to delete API key');
       }
-    } catch {
+    } catch (err) {
+      console.error('Failed to delete API key:', err);
       setError('Failed to delete API key');
     } finally {
       setActionLoading(null);
@@ -93,7 +95,8 @@ export default function ApiKeyManager({ initialFilter = 'all' }: ApiKeyManagerPr
       } else {
         setError(data.error || 'Failed to update API key');
       }
-    } catch {
+    } catch (err) {
+      console.error('Failed to update API key:', err);
       setError('Failed to update API key');
     } finally {
       setActionLoading(null);

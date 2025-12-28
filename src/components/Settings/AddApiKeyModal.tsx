@@ -60,7 +60,8 @@ export default function AddApiKeyModal({ isOpen, onClose, onSuccess }: AddApiKey
         setError(data.error || 'Failed to verify API key');
         setFieldError('apiKey');
       }
-    } catch {
+    } catch (err) {
+      console.error('Failed to verify API key:', err);
       setError('Failed to verify API key');
       setFieldError('apiKey');
     } finally {
@@ -92,7 +93,8 @@ export default function AddApiKeyModal({ isOpen, onClose, onSuccess }: AddApiKey
         setError(data.error || 'Failed to add API key');
         setFieldError(data.field || null);
       }
-    } catch {
+    } catch (err) {
+      console.error('Failed to add API key:', err);
       setError('Failed to add API key');
     } finally {
       setLoading(false);
