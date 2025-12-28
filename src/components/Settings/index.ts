@@ -1,3 +1,12 @@
+// Settings page layout and tabs
+export { SettingsLayout } from './SettingsLayout';
+export { GeneralSettings } from './GeneralSettings';
+export { ApiKeysSettings } from './ApiKeysSettings';
+export { SkillsSettings } from './SkillsSettings';
+export { AdminSettings } from './AdminSettings';
+export type { SettingsTab } from './SettingsLayout';
+
+// Individual components
 export { default as SkillManager } from './SkillManager';
 export { default as SkillCard } from './SkillCard';
 export { default as ApiKeyManager } from './ApiKeyManager';
