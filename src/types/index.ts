@@ -4,3 +4,5 @@ export * from './file';
 export * from './collaboration';
 export * from './auth';
 export * from './workspace';
+export * from './settings';
+export * from './skill';
