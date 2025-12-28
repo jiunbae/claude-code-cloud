@@ -63,7 +63,7 @@ export default function AdminSettingsPage() {
         credentials: 'include',
         body: JSON.stringify({
           value: editValue,
-          description: editDescription || undefined,
+          description: editDescription,
         }),
       });
 

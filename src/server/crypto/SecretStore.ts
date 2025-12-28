@@ -5,8 +5,15 @@ const IV_LENGTH = 12;
 const AUTH_TAG_LENGTH = 16;
 const KEY_LENGTH = 32;
 
-// Get encryption key from environment variable
+// Cached encryption key to avoid repeated PBKDF2 derivation
+let cachedEncryptionKey: Buffer | null = null;
+
+// Get encryption key from environment variable (with memoization)
 function getEncryptionKey(): Buffer {
+  if (cachedEncryptionKey) {
+    return cachedEncryptionKey;
+  }
+
   const keyBase64 = process.env.ENCRYPTION_MASTER_KEY;
 
   if (!keyBase64) {
@@ -25,7 +32,8 @@ function getEncryptionKey(): Buffer {
       if (!process.env.DEV_CRYPTO_SALT) {
         console.warn('[Security] DEV_CRYPTO_SALT not set. Using random salt - encrypted data will not persist across restarts.');
       }
-      return crypto.pbkdf2Sync(jwtSecret, salt, 100000, KEY_LENGTH, 'sha512');
+      cachedEncryptionKey = crypto.pbkdf2Sync(jwtSecret, salt, 100000, KEY_LENGTH, 'sha512');
+      return cachedEncryptionKey;
     }
     throw new Error('ENCRYPTION_MASTER_KEY or JWT_SECRET must be set for credential encryption');
   }
@@ -35,7 +43,8 @@ function getEncryptionKey(): Buffer {
     throw new Error(`ENCRYPTION_MASTER_KEY must be ${KEY_LENGTH} bytes (256 bits) when decoded from base64`);
   }
 
-  return key;
+  cachedEncryptionKey = key;
+  return cachedEncryptionKey;
 }
 
 /**

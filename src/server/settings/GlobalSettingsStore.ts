@@ -114,12 +114,12 @@ class GlobalSettingsStore {
         VALUES (?, ?, ?, ?, ?)
         ON CONFLICT(key) DO UPDATE SET
           value = excluded.value,
-          description = COALESCE(excluded.description, description),
+          description = excluded.description,
           updated_at = excluded.updated_at,
           updated_by = excluded.updated_by
       `);
 
-      stmt.run(key, encryptedValue, description || null, now, adminId);
+      stmt.run(key, encryptedValue, description ?? null, now, adminId);
 
       // Log the action
       this.logAudit(adminId, 'key_updated', 'global_settings', key, {
