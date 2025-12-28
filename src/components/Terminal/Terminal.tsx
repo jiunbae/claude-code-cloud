@@ -118,12 +118,13 @@ export default function Terminal({
 
           case 'terminal:scrollback':
             // Write scrollback history (join for better performance)
+            // Use write callback to ensure scrollToBottom runs after rendering
             if (Array.isArray(message.data) && message.data.length > 0) {
               const scrollbackContent = message.data.join('\r\n') + '\r\n';
-              xtermRef.current?.write(scrollbackContent);
+              xtermRef.current?.write(scrollbackContent, () => xtermRef.current?.scrollToBottom());
+            } else {
+              xtermRef.current?.scrollToBottom();
             }
-            // Scroll to bottom after loading scrollback history
-            xtermRef.current?.scrollToBottom();
             break;
 
           case 'session:status':
