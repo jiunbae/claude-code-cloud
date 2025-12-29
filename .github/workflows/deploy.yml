@@ -7,7 +7,7 @@ on:
   workflow_dispatch:  # 수동 실행 가능
 
 env:
-  REGISTRY: registry.jiun.dev
+  REGISTRY: registry.internal.jiun.dev
   IMAGE_NAME: claude-code-cloud
 
 jobs:
