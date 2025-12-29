@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: claude-code-cloud-config
+data:
+  NODE_ENV: "production"
+  DATABASE_PATH: "/app/data/db/claude-cloud.db"
+  WORKSPACE_ROOT: "/workspace"
+  PORT: "3000"
+  WS_PORT: "3001"
+  PTY_API_PORT: "3003"
+  TZ: "Asia/Seoul"
+  NEXT_PUBLIC_WS_PROTOCOL: "wss"
+  NEXT_PUBLIC_WS_HOST: "claude.jiun.dev"
+  NEXT_PUBLIC_WS_PORT: "443"
+  NEXT_PUBLIC_WS_PATH: "/ws"

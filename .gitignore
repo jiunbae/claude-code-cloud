@@ -45,3 +45,6 @@ next-env.d.ts
 /data/db/*.db
 /data/db/*.db-shm
 /data/db/*.db-wal
+
+# kubernetes secrets (use secret.yaml.example as template)
+kubernetes/secret.yaml

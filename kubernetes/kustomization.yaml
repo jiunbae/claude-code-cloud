@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: claude-code-cloud
+
+resources:
+  - namespace.yaml
+  - pvc.yaml
+  - configmap.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+
+commonLabels:
+  app: claude-code-cloud
+  managed-by: kustomize
+
+# Image tag is dynamically set by CI/CD pipeline using:
+# kustomize edit set image registry.jiun.dev/claude-code-cloud:$GITHUB_SHA
+images:
+  - name: registry.jiun.dev/claude-code-cloud
+    newTag: dev  # Overridden by CI/CD with git SHA
