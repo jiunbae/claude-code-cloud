@@ -151,17 +151,17 @@ function seedSkills() {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    const checkStmt = db.prepare(`SELECT id FROM skill_registry WHERE name = ?`);
+    const checkStmt = db.prepare(`SELECT id, created_at FROM skill_registry WHERE name = ?`);
 
     let added = 0;
     let updated = 0;
 
     for (const skill of defaultSkills) {
       const now = new Date().toISOString();
-      const existing = checkStmt.get(skill.name) as { id: string } | undefined;
+      const existing = checkStmt.get(skill.name) as { id: string; created_at: string } | undefined;
 
       if (existing) {
-        // Update existing skill
+        // Update existing skill, preserving created_at
         insertStmt.run(
           existing.id,
           skill.name,
@@ -173,7 +173,7 @@ function seedSkills() {
           JSON.stringify(skill.dependencies),
           skill.isSystem ? 1 : 0,
           JSON.stringify(skill.keywords),
-          now,
+          existing.created_at, // Preserve original created_at
           now
         );
         updated++;

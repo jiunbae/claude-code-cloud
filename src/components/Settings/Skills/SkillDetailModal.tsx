@@ -75,7 +75,7 @@ export default function SkillDetailModal({
 
   const formatDate = (date?: Date) => {
     if (!date) return null;
-    return new Date(date).toLocaleDateString('ko-KR', {
+    return new Date(date).toLocaleDateString(undefined, {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
