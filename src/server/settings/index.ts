@@ -5,3 +5,5 @@ export {
   type GlobalSetting,
   type AuditLog,
 } from './GlobalSettingsStore';
+
+export { userSettingsStore } from './UserSettingsStore';

@@ -1,0 +1,20 @@
+name: claude-code-cloud
+description: Run Claude Code in the cloud with web-based terminal access
+version: "1.0"
+
+llm:
+  provider: openai
+  model: gpt-4o-mini
+
+context:
+  include:
+    - "**/*.ts"
+    - "**/*.tsx"
+    - "**/*.js"
+    - "**/*.md"
+    - "**/docker-compose.yml"
+    - "**/Dockerfile"
+  exclude:
+    - "**/node_modules/**"
+    - "**/.next/**"
+    - "**/dist/**"

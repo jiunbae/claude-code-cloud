@@ -9,6 +9,9 @@
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type Language = 'en' | 'ko' | 'ja' | 'zh';
 
+export const VALID_THEMES: readonly ThemeMode[] = ['light', 'dark', 'system'] as const;
+export const VALID_LANGUAGES: readonly Language[] = ['en', 'ko', 'ja', 'zh'] as const;
+
 export interface UserSettings {
   id: string;
   userId: string;
