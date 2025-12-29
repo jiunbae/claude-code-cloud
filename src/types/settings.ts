@@ -58,7 +58,9 @@ export interface ApiKey {
   keyName: string;
   keyPreview: string; // Masked version: sk-ant-***...***abc
   isActive: boolean;
+  isValid: boolean | null; // null = not validated yet, true = valid, false = invalid
   lastUsedAt: Date | null;
+  lastValidatedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }

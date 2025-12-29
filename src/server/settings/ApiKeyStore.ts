@@ -35,9 +35,11 @@ interface ApiKeyRow {
   encrypted_key: string;
   key_preview: string;
   is_active: number;
+  is_valid: number | null;
   created_at: string;
   updated_at: string;
   last_used_at: string | null;
+  last_validated_at: string | null;
 }
 
 class ApiKeyStore {
@@ -69,9 +71,11 @@ class ApiKeyStore {
         encrypted_key TEXT NOT NULL,
         key_preview TEXT NOT NULL,
         is_active INTEGER DEFAULT 1,
+        is_valid INTEGER DEFAULT NULL,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         last_used_at TEXT,
+        last_validated_at TEXT,
         UNIQUE(user_id, provider, key_name)
       );
 
@@ -79,6 +83,15 @@ class ApiKeyStore {
       CREATE INDEX IF NOT EXISTS idx_api_keys_user_provider ON user_api_keys(user_id, provider);
       CREATE INDEX IF NOT EXISTS idx_api_keys_active ON user_api_keys(user_id, provider, is_active);
     `);
+
+    // Add new columns if they don't exist (for existing databases)
+    const columns = this._db!.pragma('table_info(user_api_keys)') as { name: string }[];
+    if (!columns.some((col) => col.name === 'is_valid')) {
+      this._db!.exec(`ALTER TABLE user_api_keys ADD COLUMN is_valid INTEGER DEFAULT NULL`);
+    }
+    if (!columns.some((col) => col.name === 'last_validated_at')) {
+      this._db!.exec(`ALTER TABLE user_api_keys ADD COLUMN last_validated_at TEXT DEFAULT NULL`);
+    }
   }
 
   /**
@@ -289,6 +302,27 @@ class ApiKeyStore {
   }
 
   /**
+   * Update the validation status of an API key
+   */
+  updateValidation(id: string, userId: string, isValid: boolean): ApiKey | null {
+    // Verify ownership
+    const key = this.getById(id);
+    if (!key || key.userId !== userId) {
+      return null;
+    }
+
+    const now = new Date().toISOString();
+    const stmt = this.db.prepare(`
+      UPDATE user_api_keys
+      SET is_valid = ?, last_validated_at = ?, updated_at = ?
+      WHERE id = ?
+    `);
+    stmt.run(isValid ? 1 : 0, now, now, id);
+
+    return this.getById(id);
+  }
+
+  /**
    * Close database connection
    */
   close(): void {
@@ -309,9 +343,11 @@ class ApiKeyStore {
       keyName: row.key_name,
       keyPreview: row.key_preview,
       isActive: row.is_active === 1,
+      isValid: row.is_valid === null ? null : row.is_valid === 1,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
       lastUsedAt: row.last_used_at ? new Date(row.last_used_at) : null,
+      lastValidatedAt: row.last_validated_at ? new Date(row.last_validated_at) : null,
     };
   }
 
