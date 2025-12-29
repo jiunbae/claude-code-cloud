@@ -3,12 +3,12 @@ import { skillManager } from '@/server/skills';
 import { getAuthContext } from '@/server/auth';
 
 interface RouteParams {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 // POST /api/settings/skills/:id/toggle - Toggle skill enabled/disabled
 export async function POST(request: NextRequest, { params }: RouteParams) {
-  const { id: skillName } = params;
+  const { id: skillName } = await params;
   const auth = await getAuthContext(request);
 
   if (!auth) {

@@ -4,12 +4,12 @@ import { getAuthContext } from '@/server/auth';
 import type { UserSkillUpdate } from '@/types/skill';
 
 interface RouteParams {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 // GET /api/settings/skills/:id - Get specific skill details
 export async function GET(request: NextRequest, { params }: RouteParams) {
-  const { id: skillName } = params;
+  const { id: skillName } = await params;
   const auth = await getAuthContext(request);
 
   if (!auth) {
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 // PUT /api/settings/skills/:id - Update skill settings (toggle, config)
 export async function PUT(request: NextRequest, { params }: RouteParams) {
-  const { id: skillName } = params;
+  const { id: skillName } = await params;
   const auth = await getAuthContext(request);
 
   if (!auth) {
@@ -104,7 +104,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
 // DELETE /api/settings/skills/:id - Uninstall skill
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  const { id: skillName } = params;
+  const { id: skillName } = await params;
   const auth = await getAuthContext(request);
 
   if (!auth) {

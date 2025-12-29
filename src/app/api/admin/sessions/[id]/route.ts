@@ -3,7 +3,7 @@ import { requireAdmin, isErrorResponse } from '@/server/auth';
 import { sessionStatsStore } from '@/server/session/SessionStatsStore';
 
 interface RouteParams {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 // GET /api/admin/sessions/[id] - Get session detail
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   if (isErrorResponse(auth)) return auth;
 
   try {
-    const { id } = params;
+    const { id } = await params;
     const session = sessionStatsStore.getSessionDetail(id);
 
     if (!session) {
@@ -38,7 +38,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   if (isErrorResponse(auth)) return auth;
 
   try {
-    const { id } = params;
+    const { id } = await params;
     const success = sessionStatsStore.terminateSession(id);
 
     if (!success) {

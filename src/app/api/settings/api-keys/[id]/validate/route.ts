@@ -11,9 +11,9 @@ const API_ENDPOINTS = {
 } as const;
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 /**
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     );
   }
 
-  const { id } = params;
+  const { id } = await params;
 
   try {
     // Get the API key with the decrypted secret
