@@ -103,6 +103,36 @@ export default function ApiKeyManager({ initialFilter = 'all' }: ApiKeyManagerPr
     }
   };
 
+  const handleValidate = async (id: string) => {
+    setActionLoading(id);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/settings/api-keys/${id}/validate`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Update the key in local state with validation result
+        if (data.apiKey) {
+          setApiKeys((prev) =>
+            prev.map((key) => (key.id === id ? data.apiKey : key))
+          );
+        }
+      } else {
+        setError(data.error || 'Failed to validate API key');
+      }
+    } catch (err) {
+      console.error('Failed to validate API key:', err);
+      setError('Failed to validate API key');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const filteredKeys = filter === 'all'
     ? apiKeys
     : apiKeys.filter((key) => key.provider === filter);
@@ -249,6 +279,7 @@ export default function ApiKeyManager({ initialFilter = 'all' }: ApiKeyManagerPr
               apiKey={key}
               onDelete={handleDelete}
               onToggleActive={handleToggleActive}
+              onValidate={handleValidate}
               isLoading={actionLoading === key.id}
             />
           ))}

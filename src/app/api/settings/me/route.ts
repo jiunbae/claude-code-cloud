@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, isErrorResponse } from '@/server/auth';
 import { userSettingsStore } from '@/server/settings';
+import { userStore } from '@/server/auth/UserStore';
 import type { UserSettingsUpdate } from '@/types/settings';
 import { VALID_THEMES, VALID_LANGUAGES } from '@/types/settings';
+import type { CredentialMode } from '@/types/auth';
+
+const VALID_CREDENTIAL_MODES: CredentialMode[] = ['global', 'custom'];
 
 // GET /api/settings/me - Get current user settings
 export async function GET(request: NextRequest) {
@@ -109,6 +113,57 @@ export async function PUT(request: NextRequest) {
       settings,
       message: 'Settings updated',
     });
+  } catch (error) {
+    console.error('Failed to update user settings:', error);
+    return NextResponse.json(
+      { error: 'Failed to update settings' },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH /api/settings/me - Update credential mode
+export async function PATCH(request: NextRequest) {
+  const auth = await requireAuth(request);
+
+  if (isErrorResponse(auth)) {
+    return auth;
+  }
+
+  try {
+    const body = await request.json();
+
+    // Only allow credentialMode update via PATCH
+    if (body.credentialMode !== undefined) {
+      if (!VALID_CREDENTIAL_MODES.includes(body.credentialMode)) {
+        return NextResponse.json(
+          { error: 'Invalid credentialMode value. Must be "global" or "custom"', field: 'credentialMode' },
+          { status: 400 }
+        );
+      }
+
+      const success = userStore.updateCredentialMode(auth.userId, body.credentialMode);
+
+      if (!success) {
+        return NextResponse.json(
+          { error: 'Failed to update credential mode' },
+          { status: 500 }
+        );
+      }
+
+      const user = userStore.getById(auth.userId);
+
+      return NextResponse.json({
+        credentialMode: body.credentialMode,
+        user: user ? userStore.toPublicUser(user) : null,
+        message: 'Credential mode updated',
+      });
+    }
+
+    return NextResponse.json(
+      { error: 'No valid fields to update' },
+      { status: 400 }
+    );
   } catch (error) {
     console.error('Failed to update user settings:', error);
     return NextResponse.json(
