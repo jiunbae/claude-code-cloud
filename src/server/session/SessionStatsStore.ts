@@ -102,7 +102,7 @@ class SessionStatsStore {
       values.push(now);
       values.push(sessionId);
 
-      if (fields.length > 1) {
+      if (fields.length > 0) {
         const stmt = this.db.prepare(`
           UPDATE session_stats SET ${fields.join(', ')} WHERE session_id = ?
         `);
@@ -220,9 +220,9 @@ class SessionStatsStore {
       lastActivityAt: new Date(row.last_activity_at),
       endedAt: row.ended_at ? new Date(row.ended_at) : null,
       status: row.status as AdminSessionStatus,
-      username: row.username || 'Unknown',
-      email: row.email || 'unknown@example.com',
-      sessionName: row.session_name || 'Unknown Session',
+      username: row.username || null,
+      email: row.email || null,
+      sessionName: row.session_name || 'Unnamed Session',
       workspaceName: row.workspace_name || undefined,
       recentActivity,
     };

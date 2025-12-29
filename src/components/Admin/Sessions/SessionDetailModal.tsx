@@ -135,11 +135,11 @@ export default function SessionDetailModal({
                   <div className="text-xs text-gray-500 mb-2">User</div>
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                      {session.username.charAt(0).toUpperCase()}
+                      {(session.username || 'U').charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-white">{session.username}</div>
-                      <div className="text-xs text-gray-500">{session.email}</div>
+                      <div className="text-sm font-medium text-white">{session.username || 'N/A'}</div>
+                      <div className="text-xs text-gray-500">{session.email || 'N/A'}</div>
                     </div>
                   </div>
                 </div>
@@ -187,8 +187,10 @@ export default function SessionDetailModal({
                               </span>
                             </div>
                             {Object.keys(activity.details).length > 0 && (
-                              <div className="text-xs text-gray-500 mt-1 font-mono">
-                                {JSON.stringify(activity.details)}
+                              <div className="text-xs text-gray-500 mt-1 font-mono bg-gray-900 p-2 rounded">
+                                <pre className="whitespace-pre-wrap break-all">
+                                  {JSON.stringify(activity.details, null, 2)}
+                                </pre>
                               </div>
                             )}
                           </div>

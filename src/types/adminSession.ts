@@ -45,8 +45,8 @@ export interface SessionFilters {
 
 // Session detail with activity logs
 export interface SessionDetail extends SessionStats {
-  username: string;
-  email: string;
+  username: string | null;
+  email: string | null;
   sessionName: string;
   workspaceName?: string;
   recentActivity: SessionActivityLog[];
