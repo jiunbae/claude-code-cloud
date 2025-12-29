@@ -207,7 +207,8 @@ function SessionView() {
 
   // Prevent anonymous users from accessing restricted tabs via state manipulation
   useEffect(() => {
-    if (isAnonymousViewer && (activeTab === 'terminal' || activeTab === 'files')) {
+    const restrictedTabs: ViewTab[] = ['terminal', 'files'];
+    if (isAnonymousViewer && restrictedTabs.includes(activeTab)) {
       setActiveTab('claude');
     }
   }, [isAnonymousViewer, activeTab]);
