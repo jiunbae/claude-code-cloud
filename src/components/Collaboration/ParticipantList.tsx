@@ -6,9 +6,10 @@ import type { Participant } from '@/types';
 interface ParticipantListProps {
   sessionId: string;
   onShareClick?: () => void;
+  isAnonymous?: boolean;
 }
 
-export default function ParticipantList({ sessionId, onShareClick }: ParticipantListProps) {
+export default function ParticipantList({ sessionId, onShareClick, isAnonymous }: ParticipantListProps) {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
@@ -112,7 +113,7 @@ export default function ParticipantList({ sessionId, onShareClick }: Participant
               <span className="text-sm font-medium text-white">
                 Participants ({participants.length})
               </span>
-              {onShareClick && (
+              {onShareClick && !isAnonymous && (
                 <button
                   onClick={onShareClick}
                   className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
