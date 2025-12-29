@@ -272,23 +272,27 @@ class SessionStatsStore {
     return true;
   }
 
-  // Bulk terminate sessions
+  // Bulk terminate sessions (wrapped in transaction for performance and atomicity)
   bulkTerminate(sessionIds: string[]): { terminated: string[]; failed: Array<{ sessionId: string; reason: string }> } {
     const terminated: string[] = [];
     const failed: Array<{ sessionId: string; reason: string }> = [];
 
-    for (const sessionId of sessionIds) {
-      try {
-        const success = this.terminateSession(sessionId);
-        if (success) {
-          terminated.push(sessionId);
-        } else {
-          failed.push({ sessionId, reason: 'Session not found or already terminated' });
+    const terminateInTransaction = this.db.transaction(() => {
+      for (const sessionId of sessionIds) {
+        try {
+          const success = this.terminateSession(sessionId);
+          if (success) {
+            terminated.push(sessionId);
+          } else {
+            failed.push({ sessionId, reason: 'Session not found or already terminated' });
+          }
+        } catch (error) {
+          failed.push({ sessionId, reason: error instanceof Error ? error.message : 'Unknown error' });
         }
-      } catch (error) {
-        failed.push({ sessionId, reason: error instanceof Error ? error.message : 'Unknown error' });
       }
-    }
+    });
+
+    terminateInTransaction();
 
     return { terminated, failed };
   }

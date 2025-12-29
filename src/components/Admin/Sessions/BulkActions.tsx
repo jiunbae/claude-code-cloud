@@ -25,7 +25,7 @@ export default function BulkActions({
           disabled={totalCount === 0}
           className="text-sm text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Select all non-terminated sessions
+          Select all on this page
         </button>
       </div>
     );
