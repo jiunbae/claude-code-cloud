@@ -8,7 +8,7 @@ import { useAuthStore } from '@/stores/authStore';
 
 export function ApiKeysSettings() {
   const { user } = useAuthStore();
-  const { credentialMode, setCredentialMode, isUpdatingMode } = useApiKeysStore();
+  const { credentialMode, setCredentialMode, isUpdatingMode, setUpdatingMode } = useApiKeysStore();
 
   // Initialize credential mode from user data
   useEffect(() => {
@@ -18,6 +18,7 @@ export function ApiKeysSettings() {
   }, [user?.credentialMode, credentialMode, setCredentialMode]);
 
   const handleModeChange = async (mode: 'global' | 'custom') => {
+    setUpdatingMode(true);
     try {
       const response = await fetch('/api/settings/me', {
         method: 'PATCH',
@@ -28,9 +29,13 @@ export function ApiKeysSettings() {
 
       if (response.ok) {
         setCredentialMode(mode);
+      } else {
+        console.error('Failed to update credential mode');
       }
     } catch (error) {
       console.error('Failed to update credential mode:', error);
+    } finally {
+      setUpdatingMode(false);
     }
   };
 

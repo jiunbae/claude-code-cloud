@@ -3,9 +3,9 @@ import { getAuthContext } from '@/server/auth';
 import { apiKeyStore } from '@/server/settings/ApiKeyStore';
 
 interface RouteParams {
-  params: Promise<{
+  params: {
     id: string;
-  }>;
+  };
 }
 
 /**
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     );
   }
 
-  const { id } = await params;
+  const { id } = params;
 
   try {
     // apiKeyStore.setActive includes ownership verification and
