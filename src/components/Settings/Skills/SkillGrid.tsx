@@ -51,14 +51,19 @@ export default function SkillGrid({
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {skills.map((skill) => (
-        <SkillCard
+        <div
           key={skill.id}
-          skill={skill}
-          onInstall={onInstall}
-          onUninstall={onUninstall}
-          onToggle={onToggle}
-          loading={loadingSkill === skill.name}
-        />
+          className="h-full cursor-pointer"
+          onClick={() => onViewDetails?.(skill)}
+        >
+          <SkillCard
+            skill={skill}
+            onInstall={onInstall}
+            onUninstall={onUninstall}
+            onToggle={onToggle}
+            loading={loadingSkill === skill.name}
+          />
+        </div>
       ))}
     </div>
   );

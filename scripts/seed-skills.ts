@@ -117,90 +117,93 @@ function seedSkills() {
   }
 
   const db = new Database(DB_PATH);
-  db.pragma('journal_mode = WAL');
 
-  // Create table if not exists
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS skill_registry (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL UNIQUE,
-      display_name TEXT,
-      description TEXT,
-      version TEXT,
-      author TEXT,
-      category TEXT DEFAULT 'general',
-      dependencies TEXT DEFAULT '[]',
-      is_system INTEGER DEFAULT 0,
-      keywords TEXT DEFAULT '[]',
-      file_hash TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
+  try {
+    db.pragma('journal_mode = WAL');
 
-    CREATE INDEX IF NOT EXISTS idx_skill_registry_name ON skill_registry(name);
-    CREATE INDEX IF NOT EXISTS idx_skill_registry_category ON skill_registry(category);
-  `);
-
-  const insertStmt = db.prepare(`
-    INSERT OR REPLACE INTO skill_registry (
-      id, name, display_name, description, version, author,
-      category, dependencies, is_system, keywords, created_at, updated_at
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  const checkStmt = db.prepare(`SELECT id FROM skill_registry WHERE name = ?`);
-
-  let added = 0;
-  let updated = 0;
-
-  for (const skill of defaultSkills) {
-    const now = new Date().toISOString();
-    const existing = checkStmt.get(skill.name) as { id: string } | undefined;
-
-    if (existing) {
-      // Update existing skill
-      insertStmt.run(
-        existing.id,
-        skill.name,
-        skill.displayName,
-        skill.description,
-        skill.version,
-        skill.author,
-        skill.category,
-        JSON.stringify(skill.dependencies),
-        skill.isSystem ? 1 : 0,
-        JSON.stringify(skill.keywords),
-        now,
-        now
+    // Create table if not exists
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS skill_registry (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        display_name TEXT,
+        description TEXT,
+        version TEXT,
+        author TEXT,
+        category TEXT DEFAULT 'general',
+        dependencies TEXT DEFAULT '[]',
+        is_system INTEGER DEFAULT 0,
+        keywords TEXT DEFAULT '[]',
+        file_hash TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
       );
-      updated++;
-      console.log(`  Updated: ${skill.displayName}`);
-    } else {
-      // Insert new skill
-      const id = nanoid(12);
-      insertStmt.run(
-        id,
-        skill.name,
-        skill.displayName,
-        skill.description,
-        skill.version,
-        skill.author,
-        skill.category,
-        JSON.stringify(skill.dependencies),
-        skill.isSystem ? 1 : 0,
-        JSON.stringify(skill.keywords),
-        now,
-        now
-      );
-      added++;
-      console.log(`  Added: ${skill.displayName}`);
+
+      CREATE INDEX IF NOT EXISTS idx_skill_registry_name ON skill_registry(name);
+      CREATE INDEX IF NOT EXISTS idx_skill_registry_category ON skill_registry(category);
+    `);
+
+    const insertStmt = db.prepare(`
+      INSERT OR REPLACE INTO skill_registry (
+        id, name, display_name, description, version, author,
+        category, dependencies, is_system, keywords, created_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const checkStmt = db.prepare(`SELECT id FROM skill_registry WHERE name = ?`);
+
+    let added = 0;
+    let updated = 0;
+
+    for (const skill of defaultSkills) {
+      const now = new Date().toISOString();
+      const existing = checkStmt.get(skill.name) as { id: string } | undefined;
+
+      if (existing) {
+        // Update existing skill
+        insertStmt.run(
+          existing.id,
+          skill.name,
+          skill.displayName,
+          skill.description,
+          skill.version,
+          skill.author,
+          skill.category,
+          JSON.stringify(skill.dependencies),
+          skill.isSystem ? 1 : 0,
+          JSON.stringify(skill.keywords),
+          now,
+          now
+        );
+        updated++;
+        console.log(`  Updated: ${skill.displayName}`);
+      } else {
+        // Insert new skill
+        const id = nanoid(12);
+        insertStmt.run(
+          id,
+          skill.name,
+          skill.displayName,
+          skill.description,
+          skill.version,
+          skill.author,
+          skill.category,
+          JSON.stringify(skill.dependencies),
+          skill.isSystem ? 1 : 0,
+          JSON.stringify(skill.keywords),
+          now,
+          now
+        );
+        added++;
+        console.log(`  Added: ${skill.displayName}`);
+      }
     }
+
+    console.log(`\nSeed completed: ${added} added, ${updated} updated`);
+  } finally {
+    db.close();
   }
-
-  db.close();
-
-  console.log(`\nSeed completed: ${added} added, ${updated} updated`);
 }
 
 // Run seed

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useSkillsStore, type SkillFilterTab } from '@/stores/skillsStore';
 import { useSkills } from '@/hooks/useSkills';
 import {
@@ -37,6 +37,14 @@ export function SkillsSettings() {
   const [selectedSkill, setSelectedSkill] = useState<UserSkillWithDetails | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+
+  // Auto-dismiss sync message
+  useEffect(() => {
+    if (syncMessage) {
+      const timerId = setTimeout(() => setSyncMessage(null), 5000);
+      return () => clearTimeout(timerId);
+    }
+  }, [syncMessage]);
 
   // Stats
   const installedCount = skills.filter((s) => s.isInstalled).length;
@@ -125,7 +133,6 @@ export function SkillsSettings() {
             text: 'Sync completed: no changes',
           });
         }
-        setTimeout(() => setSyncMessage(null), 5000);
       }
     } catch (err) {
       setSyncMessage({
