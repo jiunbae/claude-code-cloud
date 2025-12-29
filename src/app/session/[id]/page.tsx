@@ -205,6 +205,13 @@ function SessionView() {
     ensureShellStarted();
   }, [session?.workspace?.status, ensureShellStarted]);
 
+  // Prevent anonymous users from accessing restricted tabs via state manipulation
+  useEffect(() => {
+    if (isAnonymousViewer && (activeTab === 'terminal' || activeTab === 'files')) {
+      setActiveTab('claude');
+    }
+  }, [isAnonymousViewer, activeTab]);
+
   if (loading && !session) {
     return (
       <div className="h-full bg-gray-900 flex items-center justify-center">
