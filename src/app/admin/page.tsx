@@ -46,20 +46,23 @@ export default function AdminPage() {
               </p>
             </Link>
 
-            {/* Sessions Card (placeholder) */}
-            <div className="p-6 bg-gray-800/30 border border-gray-700/50 rounded-xl opacity-50">
+            {/* Sessions Card */}
+            <Link
+              href="/admin/sessions"
+              className="block p-6 bg-gray-800/50 border border-gray-700 rounded-xl hover:border-amber-500/50 transition-colors group"
+            >
               <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-gray-700/50 rounded-lg">
-                  <svg className="w-6 h-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="p-3 bg-amber-500/20 rounded-lg group-hover:bg-amber-500/30 transition-colors">
+                  <svg className="w-6 h-6 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
-                <h2 className="text-lg font-semibold text-gray-500">Sessions</h2>
+                <h2 className="text-lg font-semibold text-white">Sessions</h2>
               </div>
-              <p className="text-gray-600 text-sm">
-                View and manage active sessions. (Coming soon)
+              <p className="text-gray-400 text-sm">
+                Monitor and manage active Claude Code sessions. View statistics and terminate sessions.
               </p>
-            </div>
+            </Link>
 
             {/* Settings Card */}
             <Link
