@@ -49,6 +49,9 @@ const FileExplorer = dynamic(
 
 type ViewTab = 'claude' | 'codex' | 'terminal' | 'files';
 
+// Tabs restricted for anonymous users
+const RESTRICTED_TABS: ViewTab[] = ['terminal', 'files'];
+
 interface AnonymousInfo {
   participantId: string;
   name: string;
@@ -207,8 +210,7 @@ function SessionView() {
 
   // Prevent anonymous users from accessing restricted tabs via state manipulation
   useEffect(() => {
-    const restrictedTabs: ViewTab[] = ['terminal', 'files'];
-    if (isAnonymousViewer && restrictedTabs.includes(activeTab)) {
+    if (isAnonymousViewer && RESTRICTED_TABS.includes(activeTab)) {
       setActiveTab('claude');
     }
   }, [isAnonymousViewer, activeTab]);
