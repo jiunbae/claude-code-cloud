@@ -22,7 +22,7 @@ spec:
         fsGroup: 1000
       containers:
         - name: claude-code-cloud
-          image: registry.internal.jiun.dev/claude-code-cloud:dev
+          image: registry.jiun.dev/claude-code-cloud:dev
           imagePullPolicy: Always
           ports:
             - name: http

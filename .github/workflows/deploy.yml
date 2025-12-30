@@ -7,7 +7,8 @@ on:
   workflow_dispatch:  # 수동 실행 가능
 
 env:
-  REGISTRY: registry.internal.jiun.dev
+  INTERNAL_REGISTRY: registry.internal.jiun.dev  # Push via Tailscale
+  PUBLIC_REGISTRY: registry.jiun.dev             # Pull from K8s cluster
   IMAGE_NAME: claude-code-cloud
 
 jobs:
@@ -32,14 +33,14 @@ jobs:
             network=host
           # Allow pushing to insecure HTTP registry on Tailscale
           config-inline: |
-            [registry."${{ env.REGISTRY }}"]
+            [registry."${{ env.INTERNAL_REGISTRY }}"]
               http = true
               insecure = true
 
       - name: Log in to Docker Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ${{ env.INTERNAL_REGISTRY }}
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
@@ -50,8 +51,8 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.INTERNAL_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.INTERNAL_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -70,8 +71,8 @@ jobs:
         run: |
           cd ${{ github.workspace }}/kubernetes
 
-          # Update image tag to current git SHA (immutable tag)
-          kustomize edit set image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          # Update image tag to current git SHA (use PUBLIC_REGISTRY for K8s to pull)
+          kustomize edit set image ${{ env.PUBLIC_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
           # Apply manifests
           kubectl apply -k . --namespace=claude-code-cloud
