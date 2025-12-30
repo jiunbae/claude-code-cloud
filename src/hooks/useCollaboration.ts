@@ -77,10 +77,18 @@ export function useCollaboration({
   // Get WebSocket URL
   const getWsUrl = useCallback(() => {
     if (typeof window === 'undefined') return '';
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const wsProtocol =
+      (process.env.NEXT_PUBLIC_WS_PROTOCOL as 'ws' | 'wss' | undefined) ||
+      (window.location.protocol === 'https:' ? 'wss' : 'ws');
     const wsHost = process.env.NEXT_PUBLIC_WS_HOST || window.location.hostname;
-    const wsPort = process.env.NEXT_PUBLIC_WS_PORT || window.location.port || '3001';
-    return `${wsProtocol}://${wsHost}:${wsPort}/ws/collab`;
+    const wsPort =
+      process.env.NEXT_PUBLIC_WS_PORT ||
+      (process.env.NEXT_PUBLIC_WS_HOST
+        ? undefined
+        : window.location.port || '3001');
+    const wsPath = process.env.NEXT_PUBLIC_WS_PATH || '/ws';
+    const portPart = wsPort ? `:${wsPort}` : '';
+    return `${wsProtocol}://${wsHost}${portPart}${wsPath}/collab`;
   }, []);
 
   // Connect to collaboration WebSocket
