@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Header } from '@/components/Layout';
 
@@ -26,6 +26,11 @@ export default function JoinPage() {
     allowAnonymous?: boolean;
   } | null>(null);
 
+  // Auto-join states for anonymous viewers
+  const [autoJoining, setAutoJoining] = useState(false);
+  const [autoJoinFailed, setAutoJoinFailed] = useState(false);
+  const autoJoinAttempted = useRef(false);
+
   // Validate token on mount
   useEffect(() => {
     const validateToken = async () => {
@@ -50,11 +55,16 @@ export default function JoinPage() {
     validateToken();
   }, [token]);
 
-  const handleJoin = async (isAnonymousJoin: boolean = false) => {
+  const handleJoin = useCallback(async (isAnonymousJoin: boolean = false, isAutoJoin: boolean = false) => {
     const joinName = isAnonymousJoin ? anonymousName : name.trim();
     if (!sessionInfo || !joinName) return;
 
-    setLoading(true);
+    if (isAutoJoin) {
+      setAutoJoining(true);
+    } else {
+      setLoading(true);
+    }
+
     try {
       // Join as participant
       const res = await fetch(`/api/sessions/${sessionInfo.sessionId}/participants`, {
@@ -97,15 +107,48 @@ export default function JoinPage() {
       // Redirect to session page
       router.push(`/session/${sessionInfo.sessionId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to join session');
-      setLoading(false);
+      if (isAutoJoin) {
+        // Auto-join failed, show manual join UI as fallback
+        setAutoJoining(false);
+        setAutoJoinFailed(true);
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to join session');
+        setLoading(false);
+      }
     }
-  };
+  }, [sessionInfo, anonymousName, name, token, router]);
 
+  // Auto-join for anonymous viewers
+  useEffect(() => {
+    if (
+      validated &&
+      sessionInfo?.allowAnonymous &&
+      !autoJoinAttempted.current &&
+      !autoJoinFailed
+    ) {
+      autoJoinAttempted.current = true;
+      handleJoin(true, true);
+    }
+  }, [validated, sessionInfo, autoJoinFailed, handleJoin]);
+
+  // Show loading state during token validation
   if (loading && !validated) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white" />
+      </div>
+    );
+  }
+
+  // Show auto-joining state for anonymous viewers
+  if (autoJoining) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-400 mx-auto mb-4" />
+          <p className="text-white text-lg font-medium">Joining session...</p>
+          <p className="text-gray-400 text-sm mt-2">as {anonymousName}</p>
+        </div>
       </div>
     );
   }
@@ -164,8 +207,16 @@ export default function JoinPage() {
           <div className="bg-gray-800 rounded-lg p-6 space-y-4">
             {sessionInfo?.allowAnonymous ? (
               <>
-                {/* Anonymous viewer mode */}
+                {/* Anonymous viewer mode - fallback UI when auto-join fails */}
                 <div className="text-center">
+                  {autoJoinFailed && (
+                    <div className="mb-4 px-4 py-3 bg-yellow-900/30 border border-yellow-700/50 rounded-lg">
+                      <p className="text-sm text-yellow-400">
+                        Auto-join failed. Please click the button below to join manually.
+                      </p>
+                    </div>
+                  )}
+
                   <div className="px-4 py-3 bg-gray-700 rounded-lg mb-4">
                     <p className="text-sm text-gray-400 mb-1">You will join as:</p>
                     <p className="text-lg font-medium text-white">{anonymousName}</p>
@@ -181,7 +232,7 @@ export default function JoinPage() {
                   </div>
 
                   <button
-                    onClick={() => handleJoin(true)}
+                    onClick={() => handleJoin(true, false)}
                     disabled={loading}
                     className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   >
