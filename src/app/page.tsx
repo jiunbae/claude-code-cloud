@@ -4,7 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { SessionCard, CreateSessionModal } from '@/components/Session';
 import { WorkspaceList, CreateWorkspaceModal } from '@/components/Workspace';
-import { AuthGuard } from '@/components/Auth';
+import { LandingPage } from '@/components/Landing';
+import { useAuth } from '@/hooks/useAuth';
+import { Suspense } from 'react';
 import { useSession } from '@/hooks/useSession';
 import { useWorkspace } from '@/hooks/useWorkspace';
 import { useSessionStore } from '@/stores/sessionStore';
@@ -347,9 +349,25 @@ function Dashboard() {
 }
 
 export default function HomePage() {
-  return (
-    <AuthGuard>
-      <Dashboard />
-    </AuthGuard>
-  );
+  const { isAuthenticated, isLoading } = useAuth();
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="relative">
+          <div className="w-12 h-12 rounded-full border-4 border-gray-700"></div>
+          <div className="absolute top-0 left-0 w-12 h-12 rounded-full border-4 border-t-blue-500 animate-spin"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show landing page for unauthenticated users
+  if (!isAuthenticated) {
+    return <LandingPage />;
+  }
+
+  // Show dashboard for authenticated users
+  return <Dashboard />;
 }
