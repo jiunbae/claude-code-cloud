@@ -113,8 +113,8 @@ export default function JoinPage() {
         setAutoJoinFailed(true);
       } else {
         setError(err instanceof Error ? err.message : 'Failed to join session');
+        setLoading(false);
       }
-      setLoading(false);
     }
   }, [sessionInfo, anonymousName, name, token, router]);
 
