@@ -48,7 +48,7 @@ export function LandingPage() {
           </div>
           <div className="flex items-center gap-4">
             <a
-              href="https://github.com/jung-hunsoo/claude-code-cloud"
+              href="https://github.com/jiunbae/claude-code-cloud"
               target="_blank"
               rel="noopener noreferrer"
               className="p-2 text-gray-400 hover:text-white transition-colors"
