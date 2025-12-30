@@ -74,13 +74,39 @@ export function useCollaboration({
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Get WebSocket URL
+  // Get WebSocket URL for collaboration
+  // In reverse proxy environments (Kubernetes, Docker), the proxy handles path routing:
+  // Client: wss://domain/ws/collab -> Proxy routes /ws/* -> WsServer receives /ws/collab
   const getWsUrl = useCallback(() => {
     if (typeof window === 'undefined') return '';
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+
+    // Validate protocol override - only accept 'ws' or 'wss'
+    const protocolOverride = process.env.NEXT_PUBLIC_WS_PROTOCOL;
+    const wsProtocol =
+      protocolOverride === 'ws' || protocolOverride === 'wss'
+        ? protocolOverride
+        : window.location.protocol === 'https:'
+          ? 'wss'
+          : 'ws';
+
     const wsHost = process.env.NEXT_PUBLIC_WS_HOST || window.location.hostname;
-    const wsPort = process.env.NEXT_PUBLIC_WS_PORT || window.location.port || '3001';
-    return `${wsProtocol}://${wsHost}:${wsPort}/ws/collab`;
+
+    // Determine WebSocket port:
+    // 1. Use NEXT_PUBLIC_WS_PORT if explicitly set
+    // 2. If custom host is set (reverse proxy), omit port (use default 80/443)
+    // 3. Otherwise use browser port or default to 3001 (local development)
+    let wsPort: string | undefined = process.env.NEXT_PUBLIC_WS_PORT;
+    if (!wsPort) {
+      if (process.env.NEXT_PUBLIC_WS_HOST) {
+        wsPort = undefined; // Reverse proxy handles routing, no explicit port needed
+      } else {
+        wsPort = window.location.port || '3001'; // Local development
+      }
+    }
+
+    const wsPath = process.env.NEXT_PUBLIC_WS_PATH || '/ws';
+    const portPart = wsPort ? `:${wsPort}` : '';
+    return `${wsProtocol}://${wsHost}${portPart}${wsPath}/collab`;
   }, []);
 
   // Connect to collaboration WebSocket
