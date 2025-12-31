@@ -4,6 +4,8 @@ export { GeneralSettings } from './GeneralSettings';
 export { ApiKeysSettings } from './ApiKeysSettings';
 export { SkillsSettings } from './SkillsSettings';
 export { AdminSettings } from './AdminSettings';
+export { ClaudeArgsSettings } from './ClaudeArgsSettings';
+export { ClaudeConfigManager } from './ClaudeConfigManager';
 export type { SettingsTab } from './SettingsLayout';
 
 // Individual components

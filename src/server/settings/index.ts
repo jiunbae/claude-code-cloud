@@ -7,3 +7,5 @@ export {
 } from './GlobalSettingsStore';
 
 export { userSettingsStore } from './UserSettingsStore';
+
+export { claudeArgsStore } from './ClaudeArgsStore';
