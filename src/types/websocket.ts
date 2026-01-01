@@ -1,6 +1,7 @@
-import type { SessionStatus } from './session';
+import type { SessionStatus, TerminalKind } from './session';
 
-export type TerminalKind = 'claude' | 'shell' | 'codex';
+// Re-export TerminalKind for backwards compatibility
+export type { TerminalKind };
 
 // Valid terminal types array for validation
 export const VALID_TERMINAL_TYPES: TerminalKind[] = ['claude', 'shell', 'codex'];
