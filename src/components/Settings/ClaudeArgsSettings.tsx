@@ -4,6 +4,63 @@ import { useState, useEffect } from 'react';
 import type { ClaudeArgsConfig, ClaudePermissionMode } from '@/types/settings';
 import { CLAUDE_MODEL_OPTIONS, CLAUDE_TOOLS, DEFAULT_CLAUDE_ARGS } from '@/types/settings';
 
+// Reusable tool selector component
+interface ToolSelectorProps {
+  label: string;
+  description: string;
+  selectedTools: string[];
+  onAdd: (tool: string) => void;
+  onRemove: (tool: string) => void;
+  colorScheme: 'green' | 'red';
+}
+
+function ToolSelector({ label, description, selectedTools, onAdd, onRemove, colorScheme }: ToolSelectorProps) {
+  const colors = colorScheme === 'green'
+    ? { bg: 'bg-green-900/50', border: 'border-green-700', text: 'text-green-300', hover: 'hover:text-green-100' }
+    : { bg: 'bg-red-900/50', border: 'border-red-700', text: 'text-red-300', hover: 'hover:text-red-100' };
+
+  return (
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-gray-300">{label}</label>
+      <p className="text-xs text-gray-500">{description}</p>
+      <div className="flex flex-wrap gap-2 mb-2">
+        {selectedTools.map((tool) => (
+          <span
+            key={tool}
+            className={`inline-flex items-center px-2 py-1 ${colors.bg} border ${colors.border} rounded text-sm ${colors.text}`}
+          >
+            {tool}
+            <button
+              onClick={() => onRemove(tool)}
+              className={`ml-1 ${colors.hover}`}
+            >
+              ×
+            </button>
+          </span>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <select
+          value=""
+          onChange={(e) => {
+            if (e.target.value) {
+              onAdd(e.target.value);
+            }
+          }}
+          className="flex-1 max-w-xs px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+        >
+          <option value="">Select a tool...</option>
+          {CLAUDE_TOOLS.filter((t) => !selectedTools.includes(t.value)).map((tool) => (
+            <option key={tool.value} value={tool.value}>
+              {tool.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
 interface ClaudeArgsSettingsProps {
   /** Whether this is admin mode (global settings) or user mode */
   isAdmin?: boolean;
@@ -40,7 +97,6 @@ export function ClaudeArgsSettings({
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Custom inputs
-  const [customTool, setCustomTool] = useState('');
   const [customMcpServer, setCustomMcpServer] = useState('');
   const [customArg, setCustomArg] = useState('');
 
@@ -171,85 +227,24 @@ export function ClaudeArgsSettings({
       </div>
 
       {/* Allowed Tools */}
-      <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-300">Allowed Tools</label>
-        <p className="text-xs text-gray-500">Restrict Claude to only use these tools. Leave empty to allow all tools.</p>
-        <div className="flex flex-wrap gap-2 mb-2">
-          {(config.allowedTools || []).map((tool) => (
-            <span
-              key={tool}
-              className="inline-flex items-center px-2 py-1 bg-green-900/50 border border-green-700 rounded text-sm text-green-300"
-            >
-              {tool}
-              <button
-                onClick={() => removeFromArray('allowedTools', tool)}
-                className="ml-1 hover:text-green-100"
-              >
-                ×
-              </button>
-            </span>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <select
-            value={customTool}
-            onChange={(e) => {
-              if (e.target.value) {
-                addToArray('allowedTools', e.target.value);
-                setCustomTool('');
-              }
-            }}
-            className="flex-1 max-w-xs px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-          >
-            <option value="">Select a tool...</option>
-            {CLAUDE_TOOLS.filter((t) => !(config.allowedTools || []).includes(t.value)).map((tool) => (
-              <option key={tool.value} value={tool.value}>
-                {tool.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      <ToolSelector
+        label="Allowed Tools"
+        description="Restrict Claude to only use these tools. Leave empty to allow all tools."
+        selectedTools={config.allowedTools || []}
+        onAdd={(tool) => addToArray('allowedTools', tool)}
+        onRemove={(tool) => removeFromArray('allowedTools', tool)}
+        colorScheme="green"
+      />
 
       {/* Disallowed Tools */}
-      <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-300">Disallowed Tools</label>
-        <p className="text-xs text-gray-500">Prevent Claude from using these tools.</p>
-        <div className="flex flex-wrap gap-2 mb-2">
-          {(config.disallowedTools || []).map((tool) => (
-            <span
-              key={tool}
-              className="inline-flex items-center px-2 py-1 bg-red-900/50 border border-red-700 rounded text-sm text-red-300"
-            >
-              {tool}
-              <button
-                onClick={() => removeFromArray('disallowedTools', tool)}
-                className="ml-1 hover:text-red-100"
-              >
-                ×
-              </button>
-            </span>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <select
-            value=""
-            onChange={(e) => {
-              if (e.target.value) {
-                addToArray('disallowedTools', e.target.value);
-              }
-            }}
-            className="flex-1 max-w-xs px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-          >
-            <option value="">Select a tool...</option>
-            {CLAUDE_TOOLS.filter((t) => !(config.disallowedTools || []).includes(t.value)).map((tool) => (
-              <option key={tool.value} value={tool.value}>
-                {tool.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      <ToolSelector
+        label="Disallowed Tools"
+        description="Prevent Claude from using these tools."
+        selectedTools={config.disallowedTools || []}
+        onAdd={(tool) => addToArray('disallowedTools', tool)}
+        onRemove={(tool) => removeFromArray('disallowedTools', tool)}
+        colorScheme="red"
+      />
 
       {/* MCP Servers */}
       <div className="space-y-2">

@@ -63,10 +63,8 @@ export async function POST(request: NextRequest) {
     // Sanitize filename to prevent path traversal - use only the base name
     const safeFileName = path.basename(file.name);
 
-    // Determine full path
-    const fullPath = targetPath.endsWith('/') || targetPath === ''
-      ? `${targetPath}${safeFileName}`
-      : targetPath;
+    // Determine full path - use path.join to correctly handle directory paths
+    const fullPath = path.join(targetPath || '', safeFileName);
 
     // Write file
     await claudeConfigManager.writeFile(auth.userId, fullPath, content);

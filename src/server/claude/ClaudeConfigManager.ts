@@ -314,7 +314,12 @@ class ClaudeConfigManager {
       const skillRelativePath = path.join('skills', skillName);
       await this.createDirectory(userId, skillRelativePath);
 
-      const parsedContent = JSON.parse(content);
+      let parsedContent: { files?: Record<string, unknown> };
+      try {
+        parsedContent = JSON.parse(content);
+      } catch {
+        throw new Error('Invalid skill content: must be valid JSON for directory-based skills');
+      }
       for (const [filename, fileContent] of Object.entries(parsedContent.files || {})) {
         // Sanitize filename to prevent path traversal - use only the base name
         const safeFilename = path.basename(filename);
