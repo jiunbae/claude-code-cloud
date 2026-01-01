@@ -9,3 +9,5 @@ export {
 export { userSettingsStore } from './UserSettingsStore';
 
 export { claudeArgsStore } from './ClaudeArgsStore';
+
+export { validateClaudeArgsConfig } from './validateClaudeArgs';

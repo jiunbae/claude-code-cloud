@@ -241,16 +241,16 @@ class ClaudeArgsStore {
   private mergeConfigs(base: ClaudeArgsConfig, source: ClaudeArgsConfig): ClaudeArgsConfig {
     const merged = { ...base };
 
-    // Only override defined values
+    // Only override defined values (allow empty arrays as valid overrides)
     if (source.model !== undefined) merged.model = source.model;
     if (source.permissionMode !== undefined) merged.permissionMode = source.permissionMode;
-    if (source.allowedTools !== undefined && source.allowedTools.length > 0) {
+    if (source.allowedTools !== undefined) {
       merged.allowedTools = source.allowedTools;
     }
-    if (source.disallowedTools !== undefined && source.disallowedTools.length > 0) {
+    if (source.disallowedTools !== undefined) {
       merged.disallowedTools = source.disallowedTools;
     }
-    if (source.mcpServers !== undefined && source.mcpServers.length > 0) {
+    if (source.mcpServers !== undefined) {
       merged.mcpServers = source.mcpServers;
     }
     if (source.systemPrompt !== undefined) merged.systemPrompt = source.systemPrompt;
@@ -259,7 +259,7 @@ class ClaudeArgsStore {
     if (source.contextWindow !== undefined) merged.contextWindow = source.contextWindow;
     if (source.verbose !== undefined) merged.verbose = source.verbose;
     if (source.outputFormat !== undefined) merged.outputFormat = source.outputFormat;
-    if (source.customArgs !== undefined && source.customArgs.length > 0) {
+    if (source.customArgs !== undefined) {
       merged.customArgs = source.customArgs;
     }
 

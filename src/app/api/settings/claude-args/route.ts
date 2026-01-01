@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, isErrorResponse } from '@/server/auth';
-import { claudeArgsStore } from '@/server/settings';
+import { claudeArgsStore, validateClaudeArgsConfig } from '@/server/settings';
 import type { ClaudeArgsConfig } from '@/types/settings';
 
 // GET /api/settings/claude-args - Get user's Claude args configuration
@@ -89,58 +89,4 @@ export async function DELETE(request: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-/**
- * Validate ClaudeArgsConfig
- */
-function validateClaudeArgsConfig(config: ClaudeArgsConfig): string | null {
-  // Validate permission mode
-  if (config.permissionMode) {
-    const validModes = ['default', 'plan', 'auto-edit', 'full-auto'];
-    if (!validModes.includes(config.permissionMode)) {
-      return `Invalid permission mode: ${config.permissionMode}`;
-    }
-  }
-
-  // Validate model format (basic check)
-  if (config.model && typeof config.model !== 'string') {
-    return 'Model must be a string';
-  }
-
-  // Validate arrays
-  if (config.allowedTools && !Array.isArray(config.allowedTools)) {
-    return 'allowedTools must be an array';
-  }
-
-  if (config.disallowedTools && !Array.isArray(config.disallowedTools)) {
-    return 'disallowedTools must be an array';
-  }
-
-  if (config.mcpServers && !Array.isArray(config.mcpServers)) {
-    return 'mcpServers must be an array';
-  }
-
-  if (config.customArgs && !Array.isArray(config.customArgs)) {
-    return 'customArgs must be an array';
-  }
-
-  // Validate numeric fields
-  if (config.maxTurns !== undefined && (typeof config.maxTurns !== 'number' || config.maxTurns < 1)) {
-    return 'maxTurns must be a positive number';
-  }
-
-  if (config.contextWindow !== undefined && (typeof config.contextWindow !== 'number' || config.contextWindow < 1000)) {
-    return 'contextWindow must be a number >= 1000';
-  }
-
-  // Validate output format
-  if (config.outputFormat) {
-    const validFormats = ['text', 'json', 'stream-json'];
-    if (!validFormats.includes(config.outputFormat)) {
-      return `Invalid output format: ${config.outputFormat}`;
-    }
-  }
-
-  return null;
 }

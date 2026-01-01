@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import path from 'path';
 import { requireAuth, isErrorResponse } from '@/server/auth';
 import { claudeConfigManager } from '@/server/claude';
 
@@ -59,9 +60,12 @@ export async function POST(request: NextRequest) {
     // Read file content
     const content = await file.text();
 
+    // Sanitize filename to prevent path traversal - use only the base name
+    const safeFileName = path.basename(file.name);
+
     // Determine full path
     const fullPath = targetPath.endsWith('/') || targetPath === ''
-      ? `${targetPath}${file.name}`
+      ? `${targetPath}${safeFileName}`
       : targetPath;
 
     // Write file

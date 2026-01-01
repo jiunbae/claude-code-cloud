@@ -45,8 +45,12 @@ export default function AdminClaudeArgsPage() {
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        return { success: false, error: data.error || 'Failed to save configuration' };
+        try {
+          const data = await response.json();
+          return { success: false, error: data.error || 'Failed to save configuration' };
+        } catch {
+          return { success: false, error: `Failed to save configuration (HTTP ${response.status})` };
+        }
       }
 
       const data = await response.json();
@@ -65,8 +69,12 @@ export default function AdminClaudeArgsPage() {
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        return { success: false, error: data.error || 'Failed to reset configuration' };
+        try {
+          const data = await response.json();
+          return { success: false, error: data.error || 'Failed to reset configuration' };
+        } catch {
+          return { success: false, error: `Failed to reset configuration (HTTP ${response.status})` };
+        }
       }
 
       const data = await response.json();

@@ -305,30 +305,39 @@ class ClaudeConfigManager {
       throw new Error('Invalid skill name. Use only alphanumeric characters, dashes, and underscores.');
     }
 
-    await fs.mkdir(skillsDir, { recursive: true });
+    // Ensure skills directory exists using our safe method
+    await this.createDirectory(userId, 'skills');
 
     // Check if it's a simple markdown skill or a directory-based skill
     if (content.trim().startsWith('{')) {
       // JSON content - treat as directory-based skill
-      const skillDir = path.join(skillsDir, skillName);
-      await fs.mkdir(skillDir, { recursive: true });
+      const skillRelativePath = path.join('skills', skillName);
+      await this.createDirectory(userId, skillRelativePath);
 
       const parsedContent = JSON.parse(content);
       for (const [filename, fileContent] of Object.entries(parsedContent.files || {})) {
-        await fs.writeFile(path.join(skillDir, filename), fileContent as string, 'utf-8');
+        // Sanitize filename to prevent path traversal - use only the base name
+        const safeFilename = path.basename(filename);
+        if (!safeFilename || safeFilename === '.' || safeFilename === '..') {
+          throw new Error(`Invalid filename in skill content: ${filename}`);
+        }
+        const fileRelativePath = path.join(skillRelativePath, safeFilename);
+        await this.writeFile(userId, fileRelativePath, fileContent as string);
       }
 
-      // Save metadata
+      // Save metadata using safe method
       if (metadata) {
-        await fs.writeFile(
-          path.join(skillDir, 'metadata.json'),
-          JSON.stringify({ ...metadata, name: skillName, enabled: true }, null, 2),
-          'utf-8'
+        const metadataPath = path.join(skillRelativePath, 'metadata.json');
+        await this.writeFile(
+          userId,
+          metadataPath,
+          JSON.stringify({ ...metadata, name: skillName, enabled: true }, null, 2)
         );
       }
     } else {
-      // Markdown content - save as single file skill
-      await fs.writeFile(path.join(skillsDir, `${skillName}.md`), content, 'utf-8');
+      // Markdown content - save as single file skill using safe method
+      const fileRelativePath = path.join('skills', `${skillName}.md`);
+      await this.writeFile(userId, fileRelativePath, content);
     }
   }
 
@@ -364,22 +373,28 @@ class ClaudeConfigManager {
    * Enable or disable a skill
    */
   async setSkillEnabled(userId: string, skillName: string, enabled: boolean): Promise<void> {
+    // Validate skill name to prevent path traversal
+    if (!/^[a-zA-Z0-9_-]+$/.test(skillName)) {
+      throw new Error('Invalid skill name');
+    }
+
     const configDir = this.getConfigDir(userId);
     const skillDir = path.join(configDir, 'skills', skillName);
-    const metadataPath = path.join(skillDir, 'metadata.json');
+    const metadataRelativePath = path.join('skills', skillName, 'metadata.json');
 
     try {
-      const metadata = JSON.parse(await fs.readFile(metadataPath, 'utf-8'));
+      const content = await this.readFile(userId, metadataRelativePath);
+      const metadata = JSON.parse(content);
       metadata.enabled = enabled;
-      await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8');
+      await this.writeFile(userId, metadataRelativePath, JSON.stringify(metadata, null, 2));
     } catch {
       // Create metadata file for directory-based skills
       const stats = await fs.stat(skillDir);
       if (stats.isDirectory()) {
-        await fs.writeFile(
-          metadataPath,
-          JSON.stringify({ name: skillName, enabled }, null, 2),
-          'utf-8'
+        await this.writeFile(
+          userId,
+          metadataRelativePath,
+          JSON.stringify({ name: skillName, enabled }, null, 2)
         );
       } else {
         throw new Error(`Cannot set enabled state for single-file skill '${skillName}'`);
