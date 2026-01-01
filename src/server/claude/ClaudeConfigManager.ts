@@ -326,8 +326,12 @@ class ClaudeConfigManager {
         if (!safeFilename || safeFilename === '.' || safeFilename === '..') {
           throw new Error(`Invalid filename in skill content: ${filename}`);
         }
+        // Validate that fileContent is a string
+        if (typeof fileContent !== 'string') {
+          throw new Error(`Invalid content for file ${filename} in skill package. Content must be a string.`);
+        }
         const fileRelativePath = path.join(skillRelativePath, safeFilename);
-        await this.writeFile(userId, fileRelativePath, fileContent as string);
+        await this.writeFile(userId, fileRelativePath, fileContent);
       }
 
       // Save metadata using safe method
@@ -350,6 +354,11 @@ class ClaudeConfigManager {
    * Uninstall a skill
    */
   async uninstallSkill(userId: string, skillName: string): Promise<void> {
+    // Validate skill name to prevent path traversal
+    if (!/^[a-zA-Z0-9_-]+$/.test(skillName)) {
+      throw new Error('Invalid skill name. Use only alphanumeric characters, dashes, and underscores.');
+    }
+
     const configDir = this.getConfigDir(userId);
     const skillsDir = path.join(configDir, 'skills');
 

@@ -35,12 +35,12 @@ export function validateClaudeArgsConfig(config: ClaudeArgsConfig): string | nul
     return 'customArgs must be an array';
   }
 
-  // Validate numeric fields
-  if (config.maxTurns !== undefined && (typeof config.maxTurns !== 'number' || config.maxTurns < 1)) {
+  // Validate numeric fields (use Number.isFinite to handle NaN)
+  if (config.maxTurns !== undefined && (!Number.isFinite(config.maxTurns) || config.maxTurns < 1)) {
     return 'maxTurns must be a positive number';
   }
 
-  if (config.contextWindow !== undefined && (typeof config.contextWindow !== 'number' || config.contextWindow < 1000)) {
+  if (config.contextWindow !== undefined && (!Number.isFinite(config.contextWindow) || config.contextWindow < 1000)) {
     return 'contextWindow must be a number >= 1000';
   }
 

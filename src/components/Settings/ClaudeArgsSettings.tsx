@@ -322,7 +322,17 @@ export function ClaudeArgsSettings({
           min="1"
           max="1000"
           value={config.maxTurns || ''}
-          onChange={(e) => setConfig({ ...config, maxTurns: e.target.value ? Number(e.target.value) : undefined })}
+          onChange={(e) => {
+            const value = e.target.value;
+            if (value === '') {
+              setConfig({ ...config, maxTurns: undefined });
+            } else {
+              const num = parseInt(value, 10);
+              if (!isNaN(num)) {
+                setConfig({ ...config, maxTurns: num });
+              }
+            }
+          }}
           placeholder="No limit"
           className="w-full max-w-xs px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
         />
