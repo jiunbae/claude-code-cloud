@@ -82,6 +82,24 @@ export default function AdminPage() {
                 Manage API keys and environment variables for all users.
               </p>
             </Link>
+
+            {/* Claude Args Card */}
+            <Link
+              href="/admin/claude-args"
+              className="block p-6 bg-gray-800/50 border border-gray-700 rounded-xl hover:border-orange-500/50 transition-colors group"
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div className="p-3 bg-orange-500/20 rounded-lg group-hover:bg-orange-500/30 transition-colors">
+                  <svg className="w-6 h-6 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <h2 className="text-lg font-semibold text-white">Claude CLI Arguments</h2>
+              </div>
+              <p className="text-gray-400 text-sm">
+                Configure default Claude CLI arguments (model, permissions, tools) for all users.
+              </p>
+            </Link>
           </div>
         </div>
       </div>

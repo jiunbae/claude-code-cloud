@@ -3,6 +3,92 @@
  */
 
 // ============================================================================
+// Claude CLI Args Configuration
+// ============================================================================
+
+/**
+ * Permission mode for Claude CLI
+ * - 'default': Uses Claude's default permission settings
+ * - 'plan': Plan mode - Claude presents plan before execution
+ * - 'auto-edit': Automatically approves file edits
+ * - 'full-auto': Full autonomous mode (dangerous)
+ */
+export type ClaudePermissionMode = 'default' | 'plan' | 'auto-edit' | 'full-auto';
+
+/**
+ * Claude CLI arguments configuration
+ * These map directly to claude CLI flags
+ */
+export interface ClaudeArgsConfig {
+  // Model selection
+  model?: string; // --model: claude-sonnet-4-20250514, claude-opus-4-20250514, etc.
+
+  // Permission settings
+  permissionMode?: ClaudePermissionMode; // --permission-mode
+
+  // Tool restrictions
+  allowedTools?: string[]; // --allowedTools: List of allowed tools
+  disallowedTools?: string[]; // --disallowedTools: List of disallowed tools
+
+  // MCP (Model Context Protocol) settings
+  mcpServers?: string[]; // --mcp: MCP server configurations (JSON strings)
+
+  // System prompt customization
+  systemPrompt?: string; // --system-prompt: Custom system prompt
+  appendSystemPrompt?: string; // --append-system-prompt: Append to default system prompt
+
+  // Context & memory
+  maxTurns?: number; // --max-turns: Maximum conversation turns
+  contextWindow?: number; // Not a direct flag, but useful for configuration
+
+  // Output settings
+  verbose?: boolean; // --verbose: Enable verbose output
+  outputFormat?: 'text' | 'json' | 'stream-json'; // --output-format
+
+  // Additional custom args (for future CLI options)
+  customArgs?: string[]; // Additional raw arguments to pass
+}
+
+/**
+ * Default Claude args configuration
+ */
+export const DEFAULT_CLAUDE_ARGS: ClaudeArgsConfig = {
+  permissionMode: 'default',
+  allowedTools: [],
+  disallowedTools: [],
+  mcpServers: [],
+  verbose: false,
+};
+
+/**
+ * Predefined model options for UI selection
+ */
+export const CLAUDE_MODEL_OPTIONS = [
+  { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4 (Latest)' },
+  { value: 'claude-opus-4-20250514', label: 'Claude Opus 4' },
+  { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet' },
+  { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku' },
+] as const;
+
+/**
+ * Common Claude tools that can be allowed/disallowed
+ */
+export const CLAUDE_TOOLS = [
+  { value: 'Read', label: 'Read - Read files', category: 'file' },
+  { value: 'Write', label: 'Write - Create/overwrite files', category: 'file' },
+  { value: 'Edit', label: 'Edit - Edit existing files', category: 'file' },
+  { value: 'Bash', label: 'Bash - Execute shell commands', category: 'system' },
+  { value: 'Glob', label: 'Glob - Find files by pattern', category: 'file' },
+  { value: 'Grep', label: 'Grep - Search file contents', category: 'file' },
+  { value: 'LS', label: 'LS - List directory contents', category: 'file' },
+  { value: 'WebFetch', label: 'WebFetch - Fetch web content', category: 'network' },
+  { value: 'WebSearch', label: 'WebSearch - Search the web', category: 'network' },
+  { value: 'TodoRead', label: 'TodoRead - Read todo list', category: 'task' },
+  { value: 'TodoWrite', label: 'TodoWrite - Write todo list', category: 'task' },
+  { value: 'Task', label: 'Task - Launch sub-agents', category: 'agent' },
+] as const;
+
+// ============================================================================
 // User Settings
 // ============================================================================
 
@@ -21,6 +107,7 @@ export interface UserSettings {
   terminalFontSize: number;
   editorFontSize: number;
   autoSave: boolean;
+  claudeArgs?: ClaudeArgsConfig; // User-specific Claude args (overrides global)
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,6 +119,7 @@ export interface UserSettingsCreate {
   terminalFontSize?: number;
   editorFontSize?: number;
   autoSave?: boolean;
+  claudeArgs?: ClaudeArgsConfig;
 }
 
 export interface UserSettingsUpdate {
@@ -41,6 +129,7 @@ export interface UserSettingsUpdate {
   terminalFontSize?: number;
   editorFontSize?: number;
   autoSave?: boolean;
+  claudeArgs?: ClaudeArgsConfig;
 }
 
 // ============================================================================
@@ -98,6 +187,11 @@ export interface GlobalSettings {
   skillsEnabled: boolean;
   allowUserSkillInstall: boolean;
 
+  // Claude CLI Args (Global Defaults)
+  claudeArgs?: ClaudeArgsConfig;
+  allowUserClaudeArgs: boolean; // Whether users can override Claude args
+  allowSessionClaudeArgs: boolean; // Whether sessions can override Claude args
+
   // Branding
   customBranding?: {
     appName?: string;
@@ -126,6 +220,9 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   sessionTimeoutMinutes: 60,
   skillsEnabled: true,
   allowUserSkillInstall: true,
+  claudeArgs: DEFAULT_CLAUDE_ARGS,
+  allowUserClaudeArgs: true,
+  allowSessionClaudeArgs: true,
 };
 
 // ============================================================================

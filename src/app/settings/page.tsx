@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -9,13 +9,46 @@ import {
   ApiKeysSettings,
   SkillsSettings,
   AdminSettings,
+  ClaudeArgsSettings,
+  ClaudeConfigManager,
   type SettingsTab,
 } from '@/components/Settings';
+import type { ClaudeArgsConfig } from '@/types/settings';
 
 export default function SettingsPage() {
   const router = useRouter();
   const { user, isLoading, isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
+
+  // Claude args state
+  const [claudeArgsConfig, setClaudeArgsConfig] = useState<ClaudeArgsConfig | null>(null);
+  const [claudeArgsEffective, setClaudeArgsEffective] = useState<ClaudeArgsConfig | undefined>(undefined);
+  const [claudeArgsLoading, setClaudeArgsLoading] = useState(false);
+
+  // Fetch Claude args config
+  const fetchClaudeArgs = useCallback(async () => {
+    try {
+      setClaudeArgsLoading(true);
+      const response = await fetch('/api/settings/claude-args', {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setClaudeArgsConfig(data.userConfig);
+        setClaudeArgsEffective(data.effectiveConfig);
+      }
+    } catch (error) {
+      console.error('Failed to fetch Claude args:', error);
+    } finally {
+      setClaudeArgsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isAuthenticated && activeTab === 'claude-args') {
+      fetchClaudeArgs();
+    }
+  }, [isAuthenticated, activeTab, fetchClaudeArgs]);
 
   // Redirect to general tab if non-admin tries to access admin tab
   useEffect(() => {
@@ -39,6 +72,50 @@ export default function SettingsPage() {
     );
   }
 
+  const handleClaudeArgsSave = async (config: ClaudeArgsConfig): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const response = await fetch('/api/settings/claude-args', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(config),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        return { success: false, error: data.error || 'Failed to save' };
+      }
+
+      const data = await response.json();
+      setClaudeArgsConfig(data.userConfig);
+      setClaudeArgsEffective(data.effectiveConfig);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: (error as Error).message };
+    }
+  };
+
+  const handleClaudeArgsReset = async (): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const response = await fetch('/api/settings/claude-args', {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        return { success: false, error: data.error || 'Failed to reset' };
+      }
+
+      const data = await response.json();
+      setClaudeArgsConfig(null);
+      setClaudeArgsEffective(data.effectiveConfig);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: (error as Error).message };
+    }
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'general':
@@ -47,6 +124,19 @@ export default function SettingsPage() {
         return <ApiKeysSettings />;
       case 'skills':
         return <SkillsSettings />;
+      case 'claude-args':
+        return (
+          <ClaudeArgsSettings
+            isAdmin={false}
+            initialConfig={claudeArgsConfig}
+            effectiveConfig={claudeArgsEffective}
+            onSave={handleClaudeArgsSave}
+            onReset={handleClaudeArgsReset}
+            isLoading={claudeArgsLoading}
+          />
+        );
+      case 'claude-config':
+        return <ClaudeConfigManager />;
       case 'admin':
         // Only render admin settings if user is admin
         if (user?.role === 'admin') {

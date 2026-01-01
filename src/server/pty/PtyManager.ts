@@ -6,6 +6,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import type { SessionConfig, SessionStatus, TerminalKind } from '@/types';
 import { apiKeyStore } from '@/server/settings/ApiKeyStore';
+import { claudeArgsStore } from '@/server/settings/ClaudeArgsStore';
 import { isEncryptionConfigured } from '@/server/crypto/encryption';
 import { resolveCredentials, getClaudeConfigDir, logCredentialAccess } from '../session/CredentialResolver';
 
@@ -296,8 +297,28 @@ export class PtyManager extends EventEmitter {
         }
       }
 
+      // Resolve Claude CLI arguments
+      // Priority: session config > user config > global config > defaults
+      let cliArgs: string[] = [];
+      if (terminal === 'claude') {
+        // Get effective Claude args (merges global -> user -> session)
+        const effectiveArgs = claudeArgsStore.resolveEffective(sessionId, userId);
+
+        // If session config has claudeArgs, merge them with highest priority
+        if (config.claudeArgs) {
+          Object.assign(effectiveArgs, config.claudeArgs);
+        }
+
+        // Convert to CLI arguments
+        cliArgs = claudeArgsStore.toCliArgs(effectiveArgs);
+
+        if (cliArgs.length > 0) {
+          console.log(`[PTY] Claude args for session ${sessionId}:`, cliArgs.join(' '));
+        }
+      }
+
       // Spawn process
-      const pty = spawn(command as string, [], {
+      const pty = spawn(command as string, cliArgs, {
         name: 'xterm-256color',
         cols,
         rows,
