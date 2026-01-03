@@ -41,15 +41,9 @@ jobs:
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
 
-      - name: Checkout IaC repo
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.IAC_REPO }}
-          token: ${{ secrets.IAC_GITHUB_TOKEN }}
-          path: iac
-
-      - name: Update image tag in IaC repo
+      - name: Clone IaC repo and update image tag
         run: |
+          git clone https://x-access-token:${{ secrets.IAC_GITHUB_TOKEN }}@github.com/${{ env.IAC_REPO }}.git iac
           cd iac/${{ env.APP_PATH }}
           sed -i "s/newTag: .*/newTag: ${{ gitea.sha }}/" kustomization.yaml
           cat kustomization.yaml
