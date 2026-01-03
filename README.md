@@ -326,6 +326,62 @@ docker compose build --no-cache
 
 ---
 
+## Kubernetes Deployment (GitOps)
+
+This project uses a GitOps pattern with separated App Repo and Config Repo.
+
+### Architecture
+
+```
+GitHub: claude-code-cloud ──mirror──→ Gitea: claude-code-cloud
+                                              │
+                                              ↓
+                                      Gitea Actions (CI)
+                                              │
+                                        Image Build/Push
+                                              │
+                                              ↓
+GitHub: jiunbae/IaC ←──────── kustomization.yaml update (newTag)
+         │
+         ↓
+   ArgoCD Watch → K8s Deploy
+```
+
+### Manifests Location
+
+Kubernetes manifests are managed in the IaC repository:
+- **Repository**: [jiunbae/IaC](https://github.com/jiunbae/IaC)
+- **Path**: `kubernetes/apps/claude-code-cloud/`
+
+### Quick Deploy
+
+```bash
+# 1. Create namespace and secrets
+kubectl create namespace claude-code-cloud
+kubectl create secret generic claude-code-cloud-secrets \
+  --namespace=claude-code-cloud \
+  --from-literal=jwt-secret=$(openssl rand -base64 32) \
+  --from-literal=admin-email=admin@example.com \
+  --from-literal=admin-username=admin \
+  --from-literal=admin-password=YOUR_PASSWORD
+
+# 2. Apply ArgoCD Application
+kubectl apply -f https://raw.githubusercontent.com/jiunbae/IaC/main/kubernetes/apps/claude-code-cloud/application.yaml
+```
+
+### Deployment Strategy
+
+Uses RollingUpdate with PVC compatibility:
+```yaml
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 0
+    maxUnavailable: 1
+```
+
+---
+
 ## Development Roadmap
 
 - [x] **Phase 1**: Terminal Mirroring (Core MVP)
@@ -333,7 +389,7 @@ docker compose build --no-cache
 - [x] **Phase 3**: File Explorer
 - [x] **Phase 4**: Collaboration Features
 - [x] **Phase 5**: Landing Page & GitHub Pages
-- [ ] **Phase 6**: Kubernetes Deployment
+- [x] **Phase 6**: Kubernetes Deployment (GitOps)
 
 ---
 
