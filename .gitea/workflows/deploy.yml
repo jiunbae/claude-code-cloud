@@ -1,4 +1,4 @@
-name: Build and Push Image
+name: Build and Deploy
 
 on:
   push:
@@ -8,16 +8,16 @@ on:
 env:
   REGISTRY: registry.jiun.dev
   IMAGE_NAME: claude-code-cloud
+  IAC_REPO: jiunbae/IaC
+  APP_PATH: kubernetes/apps/claude-code-cloud
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout app repo
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITEA_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -41,16 +41,24 @@ jobs:
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
 
-      - name: Update image tag in kustomization.yaml
+      - name: Checkout IaC repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.IAC_REPO }}
+          token: ${{ secrets.IAC_GITHUB_TOKEN }}
+          path: iac
+
+      - name: Update image tag in IaC repo
         run: |
-          cd kubernetes
+          cd iac/${{ env.APP_PATH }}
           sed -i "s/newTag: .*/newTag: ${{ gitea.sha }}/" kustomization.yaml
           cat kustomization.yaml
 
-      - name: Commit and push updated manifest
+      - name: Commit and push to IaC repo
         run: |
+          cd iac
           git config user.name "Gitea Actions"
           git config user.email "actions@gitea.jiun.dev"
-          git add kubernetes/kustomization.yaml
-          git diff --staged --quiet || git commit -m "chore: update image tag to ${{ gitea.sha }}"
+          git add ${{ env.APP_PATH }}/kustomization.yaml
+          git diff --staged --quiet || git commit -m "chore(claude-code-cloud): update image tag to ${{ gitea.sha }}"
           git push
