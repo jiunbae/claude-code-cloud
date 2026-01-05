@@ -257,7 +257,7 @@ export function LandingPage() {
       {/* Footer */}
       <footer className="py-8 border-t border-gray-800">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 text-center text-gray-500 text-sm">
-          <p>&copy; {new Date().getFullYear()} {APP_NAME}. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} Jiun Bae. All rights reserved.</p>
         </div>
       </footer>
     </div>
