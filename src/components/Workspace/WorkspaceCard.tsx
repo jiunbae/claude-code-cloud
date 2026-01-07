@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import type { Workspace } from '@/types';
 
 interface WorkspaceCardProps {
@@ -37,7 +38,7 @@ function getStatusLabel(status: Workspace['status']): string {
   }
 }
 
-function formatDate(date: Date): string {
+function formatRelativeDate(date: Date): string {
   const d = new Date(date);
   const now = new Date();
   const diff = now.getTime() - d.getTime();
@@ -57,6 +58,18 @@ function formatDate(date: Date): string {
 }
 
 export default function WorkspaceCard({ workspace, onDelete, onSelect }: WorkspaceCardProps) {
+  // Use state for relative time to avoid hydration mismatch
+  const [formattedTime, setFormattedTime] = useState('');
+
+  useEffect(() => {
+    setFormattedTime(formatRelativeDate(workspace.createdAt));
+    // Update time every minute
+    const interval = setInterval(() => {
+      setFormattedTime(formatRelativeDate(workspace.createdAt));
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [workspace.createdAt]);
+
   const handleDelete = () => {
     if (workspace.sessionCount && workspace.sessionCount > 0) {
       alert(`Cannot delete workspace with ${workspace.sessionCount} connected session(s). Please delete all sessions first.`);
@@ -112,7 +125,7 @@ export default function WorkspaceCard({ workspace, onDelete, onSelect }: Workspa
             </>
           )}
         </span>
-        <span>Created {formatDate(workspace.createdAt)}</span>
+        <span>Created {formattedTime || '\u00A0'}</span>
       </div>
 
       {/* Actions */}

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import type { SessionStats, AdminSessionStatus } from '@/types/adminSession';
 
 interface SessionCardProps {
@@ -11,6 +12,31 @@ interface SessionCardProps {
   isTerminating: boolean;
 }
 
+// Format date for display
+function formatDateString(date: Date): string {
+  return new Date(date).toLocaleString('ko-KR', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+// Format duration between two dates
+function formatDurationString(startedAt: Date, endedAt: Date | null): string {
+  const end = endedAt ? new Date(endedAt) : new Date();
+  const start = new Date(startedAt);
+  const minutes = Math.floor((end.getTime() - start.getTime()) / 60000);
+
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  if (hours < 24) return `${hours}h ${remainingMinutes}m`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ${hours % 24}h`;
+}
+
 export default function SessionCard({
   session,
   isSelected,
@@ -19,6 +45,23 @@ export default function SessionCard({
   onTerminate,
   isTerminating,
 }: SessionCardProps) {
+  // Use state for formatted values to avoid hydration mismatch
+  const [formattedDate, setFormattedDate] = useState('');
+  const [formattedDuration, setFormattedDuration] = useState('');
+
+  useEffect(() => {
+    setFormattedDate(formatDateString(session.startedAt));
+    setFormattedDuration(formatDurationString(session.startedAt, session.endedAt));
+
+    // Update duration every minute for active sessions
+    if (!session.endedAt) {
+      const interval = setInterval(() => {
+        setFormattedDuration(formatDurationString(session.startedAt, null));
+      }, 60000);
+      return () => clearInterval(interval);
+    }
+  }, [session.startedAt, session.endedAt]);
+
   const getStatusDisplay = (status: AdminSessionStatus) => {
     switch (status) {
       case 'active':
@@ -40,29 +83,6 @@ export default function SessionCard({
           className: 'text-red-400 bg-red-500/10',
         };
     }
-  };
-
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleString('ko-KR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const formatDuration = (startedAt: Date, endedAt: Date | null) => {
-    const end = endedAt ? new Date(endedAt) : new Date();
-    const start = new Date(startedAt);
-    const minutes = Math.floor((end.getTime() - start.getTime()) / 60000);
-
-    if (minutes < 60) return `${minutes}m`;
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    if (hours < 24) return `${hours}h ${remainingMinutes}m`;
-    const days = Math.floor(hours / 24);
-    return `${days}d ${hours % 24}h`;
   };
 
   const status = getStatusDisplay(session.status);
@@ -102,11 +122,11 @@ export default function SessionCard({
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
               <div className="text-xs text-gray-500 mb-0.5">Started</div>
-              <div className="text-gray-300">{formatDate(session.startedAt)}</div>
+              <div className="text-gray-300">{formattedDate || '\u00A0'}</div>
             </div>
             <div>
               <div className="text-xs text-gray-500 mb-0.5">Duration</div>
-              <div className="text-gray-300">{formatDuration(session.startedAt, session.endedAt)}</div>
+              <div className="text-gray-300">{formattedDuration || '\u00A0'}</div>
             </div>
             <div>
               <div className="text-xs text-gray-500 mb-0.5">Commands</div>

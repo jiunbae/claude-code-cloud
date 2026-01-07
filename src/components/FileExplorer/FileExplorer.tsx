@@ -30,12 +30,24 @@ export default function FileExplorer({ sessionId, shareToken }: FileExplorerProp
   const [error, setError] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   // Default collapsed on mobile (< 640px)
-  const [collapsed, setCollapsed] = useState(typeof window !== 'undefined' ? window.innerWidth < 640 : false);
-  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 640 : false);
+  // Initialize with false to match server render, then update on client
+  const [collapsed, setCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Initialize mobile state on client mount to avoid hydration mismatch
+  useEffect(() => {
+    const mobile = window.innerWidth < 640;
+    setIsMobile(mobile);
+    setCollapsed(mobile);
+    setMounted(true);
+  }, []);
 
   // Track window resize for responsive behavior
   useEffect(() => {
+    if (!mounted) return;
+
     const handleResize = () => {
       const mobile = window.innerWidth < 640;
       setIsMobile(mobile);
@@ -46,7 +58,7 @@ export default function FileExplorer({ sessionId, shareToken }: FileExplorerProp
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [collapsed]);
+  }, [collapsed, mounted]);
 
   // Fetch file tree
   useEffect(() => {

@@ -19,7 +19,8 @@ export default function JoinPage() {
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [validated, setValidated] = useState(false);
-  const [anonymousName] = useState(() => generateAnonymousName());
+  // Initialize with empty string to match server render, generate on client
+  const [anonymousName, setAnonymousName] = useState('');
   const [sessionInfo, setSessionInfo] = useState<{
     sessionId: string;
     permission: 'view' | 'interact';
@@ -30,6 +31,11 @@ export default function JoinPage() {
   const [autoJoining, setAutoJoining] = useState(false);
   const [autoJoinFailed, setAutoJoinFailed] = useState(false);
   const autoJoinAttempted = useRef(false);
+
+  // Generate anonymous name on client mount to avoid hydration mismatch
+  useEffect(() => {
+    setAnonymousName(generateAnonymousName());
+  }, []);
 
   // Validate token on mount
   useEffect(() => {
@@ -118,18 +124,19 @@ export default function JoinPage() {
     }
   }, [sessionInfo, anonymousName, name, token, router]);
 
-  // Auto-join for anonymous viewers
+  // Auto-join for anonymous viewers (only after anonymousName is generated)
   useEffect(() => {
     if (
       validated &&
       sessionInfo?.allowAnonymous &&
+      anonymousName && // Wait for client-side name generation
       !autoJoinAttempted.current &&
       !autoJoinFailed
     ) {
       autoJoinAttempted.current = true;
       handleJoin(true, true);
     }
-  }, [validated, sessionInfo, autoJoinFailed, handleJoin]);
+  }, [validated, sessionInfo, anonymousName, autoJoinFailed, handleJoin]);
 
   // Show loading state during token validation
   if (loading && !validated) {
