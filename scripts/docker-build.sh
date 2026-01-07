@@ -6,6 +6,9 @@ REGISTRY="registry.im-si.org"
 IMAGE_NAME="claude-code-cloud"
 VERSION="${1:-latest}"
 
+# Build-time env
+NEXT_PUBLIC_GA_ID="${NEXT_PUBLIC_GA_ID:-}"
+
 # Full image name
 FULL_IMAGE="${REGISTRY}/${IMAGE_NAME}:${VERSION}"
 
@@ -16,6 +19,7 @@ echo "=========================================="
 # Build the image
 docker build \
     --platform linux/amd64 \
+    --build-arg "NEXT_PUBLIC_GA_ID=$NEXT_PUBLIC_GA_ID" \
     -t "${FULL_IMAGE}" \
     -t "${REGISTRY}/${IMAGE_NAME}:latest" \
     .
