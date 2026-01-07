@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect, useMemo } from 'react';
 import type { SessionDetail, SessionActionType } from '@/types/adminSession';
 
 interface SessionDetailModalProps {
@@ -11,6 +12,18 @@ interface SessionDetailModalProps {
   isTerminating: boolean;
 }
 
+// Format date for display
+function formatDateString(date: Date): string {
+  return new Date(date).toLocaleString('ko-KR', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+}
+
 export default function SessionDetailModal({
   session,
   isOpen,
@@ -19,6 +32,22 @@ export default function SessionDetailModal({
   onTerminate,
   isTerminating,
 }: SessionDetailModalProps) {
+  // Use state for formatted dates to avoid hydration mismatch
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Memoize formatted dates
+  const formattedStartedAt = useMemo(() =>
+    mounted && session ? formatDateString(session.startedAt) : '',
+  [mounted, session]);
+
+  const formattedLastActivity = useMemo(() =>
+    mounted && session ? formatDateString(session.lastActivityAt) : '',
+  [mounted, session]);
+
   if (!isOpen) return null;
 
   const getStatusDisplay = (status: string) => {
@@ -65,15 +94,10 @@ export default function SessionDetailModal({
     }
   };
 
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleString('ko-KR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
+  // Format date for activity items (called only after mount)
+  const formatActivityDate = (date: Date): string => {
+    if (!mounted) return '';
+    return formatDateString(date);
   };
 
   return (
@@ -148,11 +172,11 @@ export default function SessionDetailModal({
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="p-3 bg-gray-900/50 rounded-lg">
                     <div className="text-xs text-gray-500 mb-1">Started</div>
-                    <div className="text-sm text-gray-300">{formatDate(session.startedAt)}</div>
+                    <div className="text-sm text-gray-300">{formattedStartedAt || '\u00A0'}</div>
                   </div>
                   <div className="p-3 bg-gray-900/50 rounded-lg">
                     <div className="text-xs text-gray-500 mb-1">Last Activity</div>
-                    <div className="text-sm text-gray-300">{formatDate(session.lastActivityAt)}</div>
+                    <div className="text-sm text-gray-300">{formattedLastActivity || '\u00A0'}</div>
                   </div>
                   <div className="p-3 bg-gray-900/50 rounded-lg">
                     <div className="text-xs text-gray-500 mb-1">Commands</div>
@@ -183,7 +207,7 @@ export default function SessionDetailModal({
                                 {activity.actionType}
                               </span>
                               <span className="text-xs text-gray-500">
-                                {formatDate(activity.createdAt)}
+                                {formatActivityDate(activity.createdAt)}
                               </span>
                             </div>
                             {Object.keys(activity.details).length > 0 && (

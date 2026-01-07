@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import type { Session } from '@/types';
 
 interface SessionCardProps {
@@ -8,6 +9,22 @@ interface SessionCardProps {
   onStart: (session: Session) => void;
   onStop: (session: Session) => void;
   onDelete: (session: Session) => void;
+}
+
+// Format relative time from date
+function formatRelativeTime(date: Date | string): string {
+  const d = new Date(date);
+  const now = new Date();
+  const diff = now.getTime() - d.getTime();
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+
+  if (minutes < 1) return 'Just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days < 7) return `${days}d ago`;
+  return d.toLocaleDateString();
 }
 
 export default function SessionCard({
@@ -22,20 +39,17 @@ export default function SessionCard({
   const isStopping = session.status === 'stopping';
   const isLoading = isStarting || isStopping;
 
-  const formatDate = (date: Date | string) => {
-    const d = new Date(date);
-    const now = new Date();
-    const diff = now.getTime() - d.getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
+  // Use state for relative time to avoid hydration mismatch
+  const [formattedTime, setFormattedTime] = useState('');
 
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    if (days < 7) return `${days}d ago`;
-    return d.toLocaleDateString();
-  };
+  useEffect(() => {
+    setFormattedTime(formatRelativeTime(session.lastActiveAt));
+    // Update time every minute
+    const interval = setInterval(() => {
+      setFormattedTime(formatRelativeTime(session.lastActiveAt));
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [session.lastActiveAt]);
 
   const statusConfig = {
     running: { color: 'bg-green-500', label: 'Running' },
@@ -75,7 +89,7 @@ export default function SessionCard({
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            {formatDate(session.lastActiveAt)}
+            {formattedTime || '\u00A0'}
           </p>
         </div>
 

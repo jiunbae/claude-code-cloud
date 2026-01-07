@@ -53,8 +53,9 @@ export function useCollaboration({
   userColor: initialUserColor,
   enabled = true,
 }: UseCollaborationOptions) {
-  // Use useState to generate color only once per component instance
-  const [userColor] = useState(() => initialUserColor || generateUserColor());
+  // Initialize with stable default values to match server render
+  const [userColor, setUserColor] = useState(initialUserColor || '');
+  const [userId, setUserId] = useState('');
   const [state, setState] = useState<CollaborationState>({
     connected: false,
     collaborators: [],
@@ -62,15 +63,22 @@ export function useCollaboration({
   });
 
   const wsRef = useRef<WebSocket | null>(null);
-  // Use sessionStorage for consistent userId across tabs/refreshes
-  const [userId] = useState(() => {
-    if (typeof window === 'undefined') return generateId();
+
+  // Generate color and userId on client mount to avoid hydration mismatch
+  useEffect(() => {
+    if (!userColor) {
+      setUserColor(generateUserColor());
+    }
+
     const stored = globalThis.sessionStorage?.getItem('collabUserId');
-    if (stored) return stored;
-    const newId = generateId();
-    globalThis.sessionStorage?.setItem('collabUserId', newId);
-    return newId;
-  });
+    if (stored) {
+      setUserId(stored);
+    } else {
+      const newId = generateId();
+      globalThis.sessionStorage?.setItem('collabUserId', newId);
+      setUserId(newId);
+    }
+  }, [userColor]);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -111,7 +119,8 @@ export function useCollaboration({
 
   // Connect to collaboration WebSocket
   const connect = useCallback(() => {
-    if (!enabled || wsRef.current?.readyState === WebSocket.OPEN) return;
+    // Wait for userId to be generated on client
+    if (!enabled || !userId || wsRef.current?.readyState === WebSocket.OPEN) return;
 
     const wsUrl = getWsUrl();
     if (!wsUrl) return;
