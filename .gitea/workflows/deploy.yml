@@ -61,3 +61,4 @@ jobs:
           git add ${{ env.APP_PATH }}/kustomization.yaml
           git diff --staged --quiet || git commit -m "chore(claude-code-cloud): update image tag to ${{ gitea.sha }}"
           git push
+
