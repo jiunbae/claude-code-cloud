@@ -120,7 +120,7 @@ set -e\n\
 PUID="${PUID:-1000}"\n\
 PGID="${PGID:-1000}"\n\
 # Create directories (will work if we have permissions)\n\
-mkdir -p /app/data/db /app/data/sessions 2>/dev/null || true\n\
+mkdir -p /app/data/db /app/data/sessions /app/.next/cache/images 2>/dev/null || true\n\
 # Create workspace directories if writable\n\
 mkdir -p "${WORKSPACE_ROOT:-/workspace}/workspaces" 2>/dev/null || gosu "$PUID:$PGID" mkdir -p "${WORKSPACE_ROOT:-/workspace}/workspaces" 2>/dev/null || true\n\
 # If running as root, switch to nodejs; otherwise run directly\n\
@@ -136,7 +136,7 @@ if [ "$(id -u)" = "0" ]; then\n\
   fi\n\
   mkdir -p /home/nodejs\n\
   chown -R "$PUID:$PGID" /home/nodejs 2>/dev/null || true\n\
-  chown -R "$PUID:$PGID" /app/data 2>/dev/null || true\n\
+  chown -R "$PUID:$PGID" /app/data /app/.next/cache 2>/dev/null || true\n\
   chown -R "$PUID:$PGID" "${WORKSPACE_ROOT:-/workspace}/workspaces" 2>/dev/null || true\n\
   # Ensure CLI config directories are writable (volume may be mounted root-owned)\n\
   mkdir -p /home/nodejs/.claude /home/nodejs/.anthropic /home/nodejs/.openai 2>/dev/null || true\n\
@@ -148,8 +148,9 @@ else\n\
 fi' > /usr/local/bin/docker-entrypoint.sh \
     && chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Create data directory (will be overlaid by volume mount, entrypoint recreates at runtime)
-RUN mkdir -p /app/data/db /app/data/sessions && chown -R nodejs:nodejs /app
+# Create data directory and Next.js cache directory with proper permissions
+RUN mkdir -p /app/data/db /app/data/sessions /app/.next/cache/images \
+    && chown -R nodejs:nodejs /app
 
 # Environment variables
 ENV NODE_ENV=production
