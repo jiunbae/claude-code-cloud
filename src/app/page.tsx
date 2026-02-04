@@ -348,19 +348,23 @@ function Dashboard() {
   );
 }
 
+function LoadingSpinner() {
+  return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="relative">
+        <div className="w-12 h-12 rounded-full border-4 border-gray-700"></div>
+        <div className="absolute top-0 left-0 w-12 h-12 rounded-full border-4 border-t-blue-500 animate-spin"></div>
+      </div>
+    </div>
+  );
+}
+
 export default function HomePage() {
   const { isAuthenticated, isLoading } = useAuth();
 
   // Show loading state
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="relative">
-          <div className="w-12 h-12 rounded-full border-4 border-gray-700"></div>
-          <div className="absolute top-0 left-0 w-12 h-12 rounded-full border-4 border-t-blue-500 animate-spin"></div>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   // Show landing page for unauthenticated users
@@ -368,6 +372,10 @@ export default function HomePage() {
     return <LandingPage />;
   }
 
-  // Show dashboard for authenticated users
-  return <Dashboard />;
+  // Show dashboard for authenticated users (wrap in Suspense for useSearchParams)
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <Dashboard />
+    </Suspense>
+  );
 }
