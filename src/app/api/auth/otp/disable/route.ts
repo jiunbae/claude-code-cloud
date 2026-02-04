@@ -46,7 +46,8 @@ export async function POST(request: NextRequest) {
       try {
         const secret = decryptOtpSecret(encryptedSecret);
         isValidOtp = verifyOtpCode(secret, code);
-      } catch {
+      } catch (error) {
+        console.error('OTP decryption failed:', error);
         // Decryption failed, treat as invalid OTP
         isValidOtp = false;
       }
