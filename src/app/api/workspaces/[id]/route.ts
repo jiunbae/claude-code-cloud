@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthContext } from '@/server/auth/middleware';
 import { workspaceStore } from '@/server/workspace/WorkspaceStore';
 import { workspaceManager } from '@/server/workspace/WorkspaceManager';
+import { isAuthDisabled } from '@/server/middleware/auth';
 import type { UpdateWorkspaceRequest } from '@/types';
 
 interface RouteParams {
@@ -13,8 +14,9 @@ interface RouteParams {
  * Get a specific workspace
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
+  const authDisabled = isAuthDisabled();
   const auth = await getAuthContext(request);
-  if (!auth) {
+  if (!auth && !authDisabled) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
 
@@ -26,7 +28,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 
   // Check ownership
-  if (workspace.ownerId !== auth.userId) {
+  if (!authDisabled && workspace.ownerId !== auth?.userId) {
     return NextResponse.json({ error: 'Access denied' }, { status: 403 });
   }
 
@@ -43,8 +45,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  * Update a workspace
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
+  const authDisabled = isAuthDisabled();
   const auth = await getAuthContext(request);
-  if (!auth) {
+  if (!auth && !authDisabled) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
 
@@ -56,7 +59,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
 
   // Check ownership
-  if (workspace.ownerId !== auth.userId) {
+  if (!authDisabled && workspace.ownerId !== auth?.userId) {
     return NextResponse.json({ error: 'Access denied' }, { status: 403 });
   }
 
@@ -85,8 +88,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  * Delete a workspace
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
+  const authDisabled = isAuthDisabled();
   const auth = await getAuthContext(request);
-  if (!auth) {
+  if (!auth && !authDisabled) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
 
@@ -98,7 +102,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   }
 
   // Check ownership
-  if (workspace.ownerId !== auth.userId) {
+  if (!authDisabled && workspace.ownerId !== auth?.userId) {
     return NextResponse.json({ error: 'Access denied' }, { status: 403 });
   }
 
@@ -118,7 +122,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     workspaceStore.delete(id);
 
     // Then delete filesystem directory
-    await workspaceManager.delete(auth.userId, workspace.slug);
+    const ownerId = authDisabled ? workspace.ownerId : auth?.userId || workspace.ownerId;
+    await workspaceManager.delete(ownerId, workspace.slug);
 
     return NextResponse.json({ success: true });
   } catch (error) {

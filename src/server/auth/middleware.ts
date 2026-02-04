@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken, getTokenFromHeader } from './jwt';
+import { getMockAuthContext, isAuthDisabled } from '@/server/middleware/auth';
 import { userStore } from './UserStore';
 import type { User, PublicUser, JWTPayload } from '@/types/auth';
 
@@ -14,6 +15,10 @@ export interface AuthContext {
  * Returns null if not authenticated
  */
 export async function getAuthContext(request: NextRequest): Promise<AuthContext | null> {
+  if (isAuthDisabled()) {
+    return getMockAuthContext();
+  }
+
   // Try to get token from cookie first, then from header
   const cookieToken = request.cookies.get('auth_token')?.value;
   const headerToken = getTokenFromHeader(request.headers.get('authorization'));

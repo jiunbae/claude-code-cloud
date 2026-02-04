@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sessionStore } from '@/server/session/SessionStore';
 import { getAuthContext } from '@/server/auth';
 import { shareTokenStore } from '@/server/collaboration/ShareTokenStore';
+import { isAuthDisabled } from '@/server/middleware/auth';
 
 const PTY_API_URL = process.env.PTY_API_URL || 'http://localhost:3003';
 
@@ -28,6 +29,7 @@ async function getPtyStatus(sessionId: string): Promise<{ isRunning: boolean; pi
 // GET /api/sessions/:id - Get session details
 export async function GET(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
+  const authDisabled = isAuthDisabled();
   const auth = await getAuthContext(request);
   const session = sessionStore.get(id);
 
@@ -52,11 +54,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     hasValidShareToken =
       tokenResult.valid &&
       tokenResult.sessionId === id &&
-      (tokenResult.allowAnonymous || !!auth);
+      (tokenResult.allowAnonymous || !!auth || authDisabled);
   }
 
   // Check access: owner, public, legacy session (no owner), or valid share token
   const canAccess =
+    authDisabled ||
     !session.ownerId ||
     session.isPublic ||
     (auth && session.ownerId === auth.userId) ||
@@ -89,6 +92,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 // PATCH /api/sessions/:id - Update session
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
+  const authDisabled = isAuthDisabled();
   const auth = await getAuthContext(request);
   const session = sessionStore.get(id);
 
@@ -97,7 +101,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
 
   // Only owner can update (or legacy sessions with no owner)
-  if (session.ownerId && session.ownerId !== '' && (!auth || session.ownerId !== auth.userId)) {
+  if (!authDisabled && session.ownerId && session.ownerId !== '' && (!auth || session.ownerId !== auth.userId)) {
     return NextResponse.json({ error: 'Access denied' }, { status: 403 });
   }
 
@@ -110,6 +114,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 // DELETE /api/sessions/:id - Delete session
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
+  const authDisabled = isAuthDisabled();
   const auth = await getAuthContext(request);
   const session = sessionStore.get(id);
 
@@ -118,7 +123,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   }
 
   // Only owner can delete (or legacy sessions with no owner)
-  if (session.ownerId && session.ownerId !== '' && (!auth || session.ownerId !== auth.userId)) {
+  if (!authDisabled && session.ownerId && session.ownerId !== '' && (!auth || session.ownerId !== auth.userId)) {
     return NextResponse.json({ error: 'Access denied' }, { status: 403 });
   }
 

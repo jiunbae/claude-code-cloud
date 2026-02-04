@@ -4,6 +4,7 @@ import { sessionStore } from '@/server/session/SessionStore';
 import { workspaceManager } from '@/server/workspace/WorkspaceManager';
 import { fileSystemManager } from '@/server/files/FileSystemManager';
 import { getAuthContext } from '@/server/auth';
+import { isAuthDisabled } from '@/server/middleware/auth';
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -58,13 +59,14 @@ function validatePath(basePath: string, filePath: string): string | null {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
+    const authDisabled = isAuthDisabled();
     const auth = await getAuthContext(request);
 
-    if (!auth) {
+    if (!auth && !authDisabled) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const result = await getWorkspacePath(id, auth.userId);
+    const result = await getWorkspacePath(id, authDisabled ? undefined : auth?.userId);
     if ('error' in result) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }
@@ -129,13 +131,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
+    const authDisabled = isAuthDisabled();
     const auth = await getAuthContext(request);
 
-    if (!auth) {
+    if (!auth && !authDisabled) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const result = await getWorkspacePath(id, auth.userId);
+    const result = await getWorkspacePath(id, authDisabled ? undefined : auth?.userId);
     if ('error' in result) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }
@@ -180,13 +183,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
+    const authDisabled = isAuthDisabled();
     const auth = await getAuthContext(request);
 
-    if (!auth) {
+    if (!auth && !authDisabled) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const result = await getWorkspacePath(id, auth.userId);
+    const result = await getWorkspacePath(id, authDisabled ? undefined : auth?.userId);
     if ('error' in result) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }

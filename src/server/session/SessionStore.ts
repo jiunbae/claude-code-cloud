@@ -163,6 +163,23 @@ class SessionStore {
     return rows.map((row) => this.rowToSession(row));
   }
 
+  // Get all sessions with workspace info
+  getAllWithWorkspace(): Session[] {
+    const stmt = this.db.prepare(`
+      SELECT s.*,
+        w.id as ws_id, w.name as ws_name, w.slug as ws_slug,
+        w.description as ws_description, w.status as ws_status,
+        w.source_type as ws_source_type, w.git_url as ws_git_url,
+        w.git_branch as ws_git_branch, w.created_at as ws_created_at,
+        w.updated_at as ws_updated_at, w.owner_id as ws_owner_id
+      FROM sessions s
+      LEFT JOIN workspaces w ON s.workspace_id = w.id
+      ORDER BY s.last_active_at DESC
+    `);
+    const rows = stmt.all() as (SessionRow & WorkspaceJoinRow)[];
+    return rows.map((row) => this.rowToSessionWithWorkspace(row));
+  }
+
   // Get sessions by owner with workspace info
   getByOwner(ownerId: string): Session[] {
     const stmt = this.db.prepare(`

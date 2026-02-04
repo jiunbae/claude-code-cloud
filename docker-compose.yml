@@ -27,6 +27,8 @@ services:
       - WS_PORT=3001
       - PTY_API_PORT=3003
       - JWT_SECRET=${JWT_SECRET:-change-this-secret-in-production}
+      # Optional: Disable authentication (self-hosted only)
+      - AUTH_DISABLED=${AUTH_DISABLED:-false}
       # Initial admin account (created on first startup)
       - ADMIN_EMAIL=${ADMIN_EMAIL:-}
       - ADMIN_USERNAME=${ADMIN_USERNAME:-}
