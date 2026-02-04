@@ -10,6 +10,7 @@ const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data/db/c
 
 class UserStore {
   private _db: Database.Database | null = null;
+  private mockUsername: string = MOCK_USER.username;
   private mockCredentialMode: CredentialMode = 'global';
   private mockCredentialsEncrypted: string | null = null;
   private mockCreatedAt = new Date();
@@ -25,14 +26,14 @@ class UserStore {
   }
 
   private isMockUserUsername(username: string): boolean {
-    return isAuthDisabled() && username === MOCK_USER.username;
+    return isAuthDisabled() && username === this.mockUsername;
   }
 
   private getMockUser(): User {
     return {
       id: MOCK_USER.id,
       email: MOCK_USER.email,
-      username: MOCK_USER.username,
+      username: this.mockUsername,
       role: MOCK_USER.role,
       credentialMode: this.mockCredentialMode,
       createdAt: this.mockCreatedAt,
@@ -227,6 +228,15 @@ class UserStore {
    * Update user profile
    */
   update(id: string, updates: Partial<Pick<User, 'email' | 'username' | 'role' | 'isActive'>>): User | null {
+    // Handle mock user updates in-memory
+    if (this.isMockUserId(id)) {
+      if (updates.username !== undefined) {
+        this.mockUsername = updates.username;
+      }
+      this.mockUpdatedAt = new Date();
+      return this.getMockUser();
+    }
+
     const user = this.getById(id);
     if (!user) return null;
 
