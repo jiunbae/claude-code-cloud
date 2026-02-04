@@ -21,8 +21,9 @@ export function useAuthStatus() {
           setAuthEnabled(Boolean(data.authEnabled));
           return;
         }
-      } catch {
-        // Ignore errors and fall back to auth enabled
+      } catch (error) {
+        console.error('Failed to fetch auth status:', error);
+        // Fall back to auth enabled on error
       }
 
       if (active) {

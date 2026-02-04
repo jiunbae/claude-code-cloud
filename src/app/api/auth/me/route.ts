@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, isErrorResponse, userStore } from '@/server/auth';
-import { isAuthDisabled, MOCK_PUBLIC_USER, MOCK_USER } from '@/server/middleware/auth';
+import { isAuthDisabled, MOCK_USER } from '@/server/middleware/auth';
 
 const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,20}$/;
 
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   if (isAuthDisabled()) {
     const user = userStore.getById(MOCK_USER.id);
     return NextResponse.json({
-      user: user ? userStore.toPublicUser(user) : MOCK_PUBLIC_USER,
+      user: user ? userStore.toPublicUser(user) : null,
     });
   }
 
@@ -51,13 +51,17 @@ export async function PATCH(request: NextRequest) {
         }
       }
 
-      const updatedUser = {
-        ...MOCK_PUBLIC_USER,
-        username: username ?? MOCK_PUBLIC_USER.username,
-      };
+      // Persist the update in UserStore for mock user
+      const updatedUser = userStore.update(MOCK_USER.id, { username });
+      if (!updatedUser) {
+        return NextResponse.json(
+          { error: 'Mock user not found' },
+          { status: 404 }
+        );
+      }
 
       return NextResponse.json({
-        user: updatedUser,
+        user: userStore.toPublicUser(updatedUser),
         message: 'Profile updated',
       });
     } catch (error) {
