@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { userStore, signToken, verifyOtpToken, getTokenFromHeader, AUTH_COOKIE_OPTIONS } from '@/server/auth';
 import { decryptOtpSecret, verifyOtpCode, hashBackupCode } from '@/server/auth/otp';
@@ -60,16 +61,28 @@ export async function POST(request: NextRequest) {
     let isValidOtp = verifyOtpCode(secret, code);
     let usedBackupCode = false;
 
-    // If TOTP code is invalid, try backup codes
+    // If TOTP code is invalid, try backup codes with constant-time comparison
     if (!isValidOtp) {
       const hashedInput = hashBackupCode(code);
+      const hashedInputBuffer = Buffer.from(hashedInput);
       const backupCodes = userStore.getBackupCodes(user.id);
+      let matchedHash: string | null = null;
 
-      if (backupCodes.includes(hashedInput)) {
+      // Use constant-time comparison to prevent timing attacks
+      for (const storedHash of backupCodes) {
+        if (storedHash.length === hashedInput.length) {
+          const storedBuffer = Buffer.from(storedHash);
+          if (crypto.timingSafeEqual(storedBuffer, hashedInputBuffer)) {
+            matchedHash = storedHash;
+          }
+        }
+      }
+
+      if (matchedHash) {
         isValidOtp = true;
         usedBackupCode = true;
         // Remove the used backup code
-        userStore.removeBackupCode(user.id, hashedInput);
+        userStore.removeBackupCode(user.id, matchedHash);
       }
     }
 

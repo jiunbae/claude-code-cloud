@@ -11,7 +11,10 @@ const OTP_IV_LENGTH = 12;
 const OTP_AUTH_TAG_LENGTH = 16;
 
 function getOtpEncryptionKey(): Buffer {
-  const jwtSecret = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) {
+    throw new Error('JWT_SECRET environment variable is required for OTP encryption');
+  }
   return crypto.createHash('sha256').update(jwtSecret).digest();
 }
 
@@ -90,7 +93,8 @@ export function generateBackupCodes(count = 10): string[] {
 
 export function hashBackupCode(code: string): string {
   const normalized = code.replace(/[^0-9]/g, '');
-  return crypto.createHash('sha256').update(normalized).digest('hex');
+  const salt = process.env.BACKUP_CODE_SALT || '';
+  return crypto.createHash('sha256').update(normalized + salt).digest('hex');
 }
 
 export function hashBackupCodes(codes: string[]): string[] {

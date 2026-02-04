@@ -36,36 +36,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate both password and OTP together to prevent timing attacks
     const passwordHash = userStore.getPasswordHash(user.email);
-    if (!passwordHash) {
-      return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
-      );
-    }
-
-    const isValidPassword = await verifyPassword(password, passwordHash);
-    if (!isValidPassword) {
-      return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
-      );
-    }
+    const isValidPassword = passwordHash ? await verifyPassword(password, passwordHash) : false;
 
     const encryptedSecret = userStore.getOtpSecret(auth.userId);
-    if (!encryptedSecret) {
-      return NextResponse.json(
-        { error: 'OTP secret not found' },
-        { status: 400 }
-      );
+    let isValidOtp = false;
+    if (encryptedSecret) {
+      try {
+        const secret = decryptOtpSecret(encryptedSecret);
+        isValidOtp = verifyOtpCode(secret, code);
+      } catch {
+        // Decryption failed, treat as invalid OTP
+        isValidOtp = false;
+      }
     }
 
-    const secret = decryptOtpSecret(encryptedSecret);
-    const isValidOtp = verifyOtpCode(secret, code);
-
-    if (!isValidOtp) {
+    if (!isValidPassword || !isValidOtp) {
       return NextResponse.json(
-        { error: 'Invalid OTP code' },
+        { error: 'Invalid password or OTP code' },
         { status: 401 }
       );
     }
