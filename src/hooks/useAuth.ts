@@ -57,12 +57,53 @@ export function useAuth() {
 
   // Login
   const login = useCallback(
-    async (data: LoginRequest): Promise<{ success: boolean; error?: string }> => {
+    async (
+      data: LoginRequest
+    ): Promise<{ success: boolean; error?: string; requiresOtp?: boolean; tempToken?: string }> => {
       try {
         const response = await fetch(`${API_BASE}/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data),
+          credentials: 'include',
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          if (result.requiresOtp) {
+            if (!result.tempToken) {
+              return { success: false, error: 'OTP token missing' };
+            }
+            return { success: true, requiresOtp: true, tempToken: result.tempToken };
+          }
+
+          setUser(result.user);
+          return { success: true };
+        }
+
+        return { success: false, error: result.error };
+      } catch {
+        return { success: false, error: 'Login failed' };
+      }
+    },
+    [setUser]
+  );
+
+  // Complete login with OTP
+  const verifyOtpLogin = useCallback(
+    async (
+      code: string,
+      tempToken: string
+    ): Promise<{ success: boolean; error?: string }> => {
+      try {
+        const response = await fetch(`${API_BASE}/otp/validate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${tempToken}`,
+          },
+          body: JSON.stringify({ code }),
           credentials: 'include',
         });
 
@@ -75,7 +116,7 @@ export function useAuth() {
 
         return { success: false, error: result.error };
       } catch {
-        return { success: false, error: 'Login failed' };
+        return { success: false, error: 'OTP validation failed' };
       }
     },
     [setUser]
@@ -124,6 +165,7 @@ export function useAuth() {
     isLoading,
     isAuthenticated,
     login,
+    verifyOtpLogin,
     logout,
     updateProfile,
     refreshUser: fetchUser,

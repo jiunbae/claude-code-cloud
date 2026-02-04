@@ -18,6 +18,7 @@ export interface User {
   username: string;
   role: UserRole;
   credentialMode: CredentialMode;
+  otpEnabled: boolean;
   createdAt: Date;
   updatedAt: Date;
   lastLoginAt: Date | null;
@@ -31,6 +32,7 @@ export interface PublicUser {
   username: string;
   role: UserRole;
   credentialMode: CredentialMode;
+  otpEnabled: boolean;
   createdAt: Date;
   lastLoginAt: Date | null;
 }
