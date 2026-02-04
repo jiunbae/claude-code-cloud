@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import QRCode from 'qrcode';
 import { requireAuth, isErrorResponse, userStore } from '@/server/auth';
-import { encryptOtpSecret, generateBackupCodes, generateOtpSecret } from '@/server/auth/otp';
+import { encryptOtpSecret, generateBackupCodes, generateOtpSecret, hashBackupCodes } from '@/server/auth/otp';
 
 // POST /api/auth/otp/setup - Generate OTP secret and QR code
 export async function POST(request: NextRequest) {
@@ -33,6 +33,10 @@ export async function POST(request: NextRequest) {
 
     const encryptedSecret = encryptOtpSecret(secret);
     userStore.updateOtpSecret(auth.userId, encryptedSecret);
+
+    // Store hashed backup codes server-side
+    const hashedCodes = hashBackupCodes(backupCodes);
+    userStore.updateBackupCodes(auth.userId, hashedCodes);
 
     return NextResponse.json({
       secret,

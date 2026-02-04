@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     if (!isValidOtp) {
       return NextResponse.json(
         { error: 'Invalid OTP code' },
-        { status: 400 }
+        { status: 401 }
       );
     }
 

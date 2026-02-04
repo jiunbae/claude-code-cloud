@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { userStore, signToken, verifyOtpToken, getTokenFromHeader, AUTH_COOKIE_OPTIONS } from '@/server/auth';
-import { decryptOtpSecret, verifyOtpCode } from '@/server/auth/otp';
+import { decryptOtpSecret, verifyOtpCode, hashBackupCode } from '@/server/auth/otp';
 
 // POST /api/auth/otp/validate - Validate OTP during login
 export async function POST(request: NextRequest) {
@@ -57,7 +57,21 @@ export async function POST(request: NextRequest) {
     }
 
     const secret = decryptOtpSecret(encryptedSecret);
-    const isValidOtp = verifyOtpCode(secret, code);
+    let isValidOtp = verifyOtpCode(secret, code);
+    let usedBackupCode = false;
+
+    // If TOTP code is invalid, try backup codes
+    if (!isValidOtp) {
+      const hashedInput = hashBackupCode(code);
+      const backupCodes = userStore.getBackupCodes(user.id);
+
+      if (backupCodes.includes(hashedInput)) {
+        isValidOtp = true;
+        usedBackupCode = true;
+        // Remove the used backup code
+        userStore.removeBackupCode(user.id, hashedInput);
+      }
+    }
 
     if (!isValidOtp) {
       return NextResponse.json(
@@ -75,9 +89,12 @@ export async function POST(request: NextRequest) {
 
     userStore.updateLastLogin(user.id);
 
+    const remainingBackupCodes = userStore.getBackupCodes(user.id).length;
+
     const response = NextResponse.json({
       user: userStore.toPublicUser(user),
       message: 'Login successful',
+      ...(usedBackupCode && { warning: `Backup code used. ${remainingBackupCodes} remaining.` }),
     });
 
     response.cookies.set(AUTH_COOKIE_OPTIONS.name, token, {

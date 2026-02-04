@@ -20,7 +20,7 @@ export default function OTPInput({
 }: OTPInputProps) {
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const digits = useMemo(
-    () => value.replace(/\\D/g, '').slice(0, length).split(''),
+    () => value.replace(/\D/g, '').slice(0, length).split(''),
     [value, length]
   );
 
@@ -33,7 +33,7 @@ export default function OTPInput({
   };
 
   const updateValue = (index: number, nextDigits: string) => {
-    const current = value.replace(/\\D/g, '').slice(0, length).split('');
+    const current = value.replace(/\D/g, '').slice(0, length).split('');
 
     if (!nextDigits) {
       if (index < current.length) {
@@ -50,7 +50,7 @@ export default function OTPInput({
   };
 
   const handleChange = (index: number, nextValue: string) => {
-    const sanitized = nextValue.replace(/\\D/g, '');
+    const sanitized = nextValue.replace(/\D/g, '');
     updateValue(index, sanitized);
 
     if (sanitized) {

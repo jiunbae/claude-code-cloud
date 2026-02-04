@@ -73,6 +73,11 @@ class UserStore {
       this._db!.exec(`ALTER TABLE users ADD COLUMN otp_enabled INTEGER DEFAULT 0`);
     }
 
+    // Add otp_backup_codes column if it doesn't exist (JSON array of hashed codes)
+    if (!userColumns.some((col) => col.name === 'otp_backup_codes')) {
+      this._db!.exec(`ALTER TABLE users ADD COLUMN otp_backup_codes TEXT DEFAULT NULL`);
+    }
+
     // Add owner_id and is_public columns to sessions if they don't exist
     try {
       const sessionColumns = this._db!.pragma('table_info(sessions)') as { name: string }[];
@@ -351,10 +356,45 @@ class UserStore {
    */
   clearOtp(id: string): boolean {
     const stmt = this.db.prepare(`
-      UPDATE users SET otp_secret = NULL, otp_enabled = 0, updated_at = ? WHERE id = ?
+      UPDATE users SET otp_secret = NULL, otp_enabled = 0, otp_backup_codes = NULL, updated_at = ? WHERE id = ?
     `);
     const result = stmt.run(new Date().toISOString(), id);
     return result.changes > 0;
+  }
+
+  /**
+   * Store hashed backup codes (JSON array)
+   */
+  updateBackupCodes(id: string, hashedCodes: string[]): boolean {
+    const stmt = this.db.prepare(`
+      UPDATE users SET otp_backup_codes = ?, updated_at = ? WHERE id = ?
+    `);
+    const result = stmt.run(JSON.stringify(hashedCodes), new Date().toISOString(), id);
+    return result.changes > 0;
+  }
+
+  /**
+   * Get hashed backup codes
+   */
+  getBackupCodes(id: string): string[] {
+    const stmt = this.db.prepare(`SELECT otp_backup_codes FROM users WHERE id = ?`);
+    const row = stmt.get(id) as { otp_backup_codes: string | null } | undefined;
+    if (!row?.otp_backup_codes) return [];
+    try {
+      return JSON.parse(row.otp_backup_codes);
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Remove a used backup code (by its hash)
+   */
+  removeBackupCode(id: string, hashedCode: string): boolean {
+    const codes = this.getBackupCodes(id);
+    const filtered = codes.filter((c) => c !== hashedCode);
+    if (filtered.length === codes.length) return false;
+    return this.updateBackupCodes(id, filtered);
   }
 
   /**

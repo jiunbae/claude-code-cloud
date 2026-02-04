@@ -87,3 +87,12 @@ export function generateBackupCodes(count = 10): string[] {
     return `${code.slice(0, 4)}-${code.slice(4)}`;
   });
 }
+
+export function hashBackupCode(code: string): string {
+  const normalized = code.replace(/[^0-9]/g, '');
+  return crypto.createHash('sha256').update(normalized).digest('hex');
+}
+
+export function hashBackupCodes(codes: string[]): string[] {
+  return codes.map(hashBackupCode);
+}

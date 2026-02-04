@@ -47,7 +47,8 @@ export default function OTPSetup() {
 
       setSetupData(result);
       showMessage('success', 'Scan the QR code and enter your code to enable 2FA');
-    } catch {
+    } catch (error) {
+      console.error('OTP setup error:', error);
       showMessage('error', 'Failed to start setup');
     } finally {
       setIsLoading(false);
@@ -79,7 +80,8 @@ export default function OTPSetup() {
       setSetupData(null);
       setSetupCode('');
       showMessage('success', 'Two-factor authentication enabled');
-    } catch {
+    } catch (error) {
+      console.error('OTP verify error:', error);
       showMessage('error', 'Failed to verify code');
     } finally {
       setIsLoading(false);
@@ -111,7 +113,8 @@ export default function OTPSetup() {
       setDisablePassword('');
       setDisableCode('');
       showMessage('success', 'Two-factor authentication disabled');
-    } catch {
+    } catch (error) {
+      console.error('OTP disable error:', error);
       showMessage('error', 'Failed to disable 2FA');
     } finally {
       setIsLoading(false);
