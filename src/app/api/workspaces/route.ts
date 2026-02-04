@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthContext } from '@/server/auth/middleware';
 import { workspaceStore } from '@/server/workspace/WorkspaceStore';
 import { workspaceManager } from '@/server/workspace/WorkspaceManager';
-import { isAuthDisabled } from '@/server/middleware/auth';
+import { isAuthDisabled, MOCK_USER } from '@/server/middleware/auth';
 import type { CreateWorkspaceRequest } from '@/types';
 
 // Slug validation: only alphanumeric and hyphens, 3-50 chars
@@ -40,7 +40,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
 
-  const ownerId = auth?.userId;
+  // When auth is disabled, use mock user ID; otherwise use authenticated user ID
+  const ownerId = authDisabled ? MOCK_USER.id : auth!.userId;
 
   let body: CreateWorkspaceRequest;
   try {
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Check if slug already exists for this user
-  if (ownerId && workspaceStore.slugExists(ownerId, slug)) {
+  if (workspaceStore.slugExists(ownerId, slug)) {
     return NextResponse.json({ error: 'A workspace with this slug already exists' }, { status: 409 });
   }
 
@@ -97,16 +98,16 @@ export async function POST(request: NextRequest) {
         ...body,
         slug,
       },
-      ownerId || ''
+      ownerId
     );
 
     // Create filesystem directory (async, don't wait)
     (async () => {
       try {
         if (body.sourceType === 'empty') {
-          await workspaceManager.createEmpty(ownerId || '', slug);
+          await workspaceManager.createEmpty(ownerId, slug);
         } else {
-          await workspaceManager.createFromGit(ownerId || '', slug, body.gitUrl!, body.gitBranch);
+          await workspaceManager.createFromGit(ownerId, slug, body.gitUrl!, body.gitBranch);
         }
         // Update status to ready
         workspaceStore.updateStatus(workspace.id, 'ready');

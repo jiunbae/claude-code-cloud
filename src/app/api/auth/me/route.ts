@@ -2,6 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, isErrorResponse, userStore } from '@/server/auth';
 import { isAuthDisabled, MOCK_PUBLIC_USER, MOCK_USER } from '@/server/middleware/auth';
 
+const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,20}$/;
+
+function validateUsername(username: string): { valid: boolean; error?: string } {
+  if (!USERNAME_REGEX.test(username)) {
+    return {
+      valid: false,
+      error: 'Username must be 3-20 characters, alphanumeric and underscore only',
+    };
+  }
+  return { valid: true };
+}
+
 // GET /api/auth/me - Get current user
 export async function GET(request: NextRequest) {
   if (isAuthDisabled()) {
@@ -30,13 +42,10 @@ export async function PATCH(request: NextRequest) {
       const { username } = body;
 
       if (username !== undefined) {
-        const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
-        if (!usernameRegex.test(username)) {
+        const validation = validateUsername(username);
+        if (!validation.valid) {
           return NextResponse.json(
-            {
-              error: 'Username must be 3-20 characters, alphanumeric and underscore only',
-              field: 'username',
-            },
+            { error: validation.error, field: 'username' },
             { status: 400 }
           );
         }
@@ -72,13 +81,10 @@ export async function PATCH(request: NextRequest) {
 
     // Validate username if provided
     if (username !== undefined) {
-      const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
-      if (!usernameRegex.test(username)) {
+      const validation = validateUsername(username);
+      if (!validation.valid) {
         return NextResponse.json(
-          {
-            error: 'Username must be 3-20 characters, alphanumeric and underscore only',
-            field: 'username',
-          },
+          { error: validation.error, field: 'username' },
           { status: 400 }
         );
       }

@@ -122,7 +122,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     workspaceStore.delete(id);
 
     // Then delete filesystem directory
-    const ownerId = authDisabled ? workspace.ownerId : auth?.userId || workspace.ownerId;
+    const ownerId = authDisabled ? workspace.ownerId : auth!.userId;
     await workspaceManager.delete(ownerId, workspace.slug);
 
     return NextResponse.json({ success: true });
