@@ -149,6 +149,16 @@ PGID=$(id -g)
 
 > **Note**: API keys are not needed for building. They're required when starting Claude/Codex sessions. You can also configure them via Admin Settings.
 
+### Auth-Free Mode (Self-Hosted)
+
+You can disable authentication for single-user or trusted environments:
+
+```env
+AUTH_DISABLED=true
+```
+
+> **Warning**: Authentication is disabled. Do not use in production or expose to untrusted networks.
+
 ### WebSocket (Reverse Proxy)
 
 ```env
@@ -368,6 +378,8 @@ kubectl create secret generic claude-code-cloud-secrets \
 # 2. Apply ArgoCD Application
 kubectl apply -f https://raw.githubusercontent.com/jiunbae/IaC/main/kubernetes/apps/claude-code-cloud/application.yaml
 ```
+
+> If you use a ConfigMap for environment variables, add `AUTH_DISABLED` as needed. See `docs/kubernetes/configmap.yaml` for an example.
 
 ### Deployment Strategy
 

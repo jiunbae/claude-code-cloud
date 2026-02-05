@@ -3,12 +3,45 @@ import { nanoid } from 'nanoid';
 import path from 'path';
 import fs from 'fs';
 import type { User, PublicUser, UserRole, CredentialMode } from '@/types/auth';
+import { isAuthDisabled, MOCK_USER } from '@/server/middleware/auth';
 
 // Database path configuration
 const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data/db/claude-cloud.db');
 
 class UserStore {
   private _db: Database.Database | null = null;
+  private mockUsername: string = MOCK_USER.username;
+  private mockCredentialMode: CredentialMode = 'global';
+  private mockCredentialsEncrypted: string | null = null;
+  private mockCreatedAt = new Date();
+  private mockUpdatedAt = new Date();
+  private mockLastLoginAt: Date | null = null;
+
+  private isMockUserId(id: string): boolean {
+    return isAuthDisabled() && id === MOCK_USER.id;
+  }
+
+  private isMockUserEmail(email: string): boolean {
+    return isAuthDisabled() && email.toLowerCase() === MOCK_USER.email;
+  }
+
+  private isMockUserUsername(username: string): boolean {
+    return isAuthDisabled() && username === this.mockUsername;
+  }
+
+  private getMockUser(): User {
+    return {
+      id: MOCK_USER.id,
+      email: MOCK_USER.email,
+      username: this.mockUsername,
+      role: MOCK_USER.role,
+      credentialMode: this.mockCredentialMode,
+      createdAt: this.mockCreatedAt,
+      updatedAt: this.mockUpdatedAt,
+      lastLoginAt: this.mockLastLoginAt,
+      isActive: true,
+    };
+  }
 
   // Lazy database initialization
   private get db(): Database.Database {
@@ -160,7 +193,13 @@ class UserStore {
   getById(id: string): User | null {
     const stmt = this.db.prepare(`SELECT * FROM users WHERE id = ?`);
     const row = stmt.get(id) as UserRow | undefined;
-    return row ? this.rowToUser(row) : null;
+    if (row) {
+      return this.rowToUser(row);
+    }
+    if (this.isMockUserId(id)) {
+      return this.getMockUser();
+    }
+    return null;
   }
 
   /**
@@ -169,7 +208,13 @@ class UserStore {
   getByEmail(email: string): User | null {
     const stmt = this.db.prepare(`SELECT * FROM users WHERE email = ?`);
     const row = stmt.get(email.toLowerCase()) as UserRow | undefined;
-    return row ? this.rowToUser(row) : null;
+    if (row) {
+      return this.rowToUser(row);
+    }
+    if (this.isMockUserEmail(email)) {
+      return this.getMockUser();
+    }
+    return null;
   }
 
   /**
@@ -178,7 +223,13 @@ class UserStore {
   getByUsername(username: string): User | null {
     const stmt = this.db.prepare(`SELECT * FROM users WHERE username = ?`);
     const row = stmt.get(username) as UserRow | undefined;
-    return row ? this.rowToUser(row) : null;
+    if (row) {
+      return this.rowToUser(row);
+    }
+    if (this.isMockUserUsername(username)) {
+      return this.getMockUser();
+    }
+    return null;
   }
 
   /**
@@ -194,6 +245,15 @@ class UserStore {
    * Update user profile
    */
   update(id: string, updates: Partial<Pick<User, 'email' | 'username' | 'role' | 'isActive'>>): User | null {
+    // Handle mock user updates in-memory
+    if (this.isMockUserId(id)) {
+      if (updates.username !== undefined) {
+        this.mockUsername = updates.username;
+      }
+      this.mockUpdatedAt = new Date();
+      return this.getMockUser();
+    }
+
     const user = this.getById(id);
     if (!user) return null;
 
@@ -244,6 +304,11 @@ class UserStore {
    * Update last login time
    */
   updateLastLogin(id: string): void {
+    if (this.isMockUserId(id)) {
+      this.mockLastLoginAt = new Date();
+      this.mockUpdatedAt = new Date();
+      return;
+    }
     const stmt = this.db.prepare(`UPDATE users SET last_login_at = ? WHERE id = ?`);
     stmt.run(new Date().toISOString(), id);
   }
@@ -311,6 +376,11 @@ class UserStore {
    * Update user credential mode
    */
   updateCredentialMode(id: string, mode: CredentialMode): boolean {
+    if (this.isMockUserId(id)) {
+      this.mockCredentialMode = mode;
+      this.mockUpdatedAt = new Date();
+      return true;
+    }
     const stmt = this.db.prepare(`
       UPDATE users SET credential_mode = ?, updated_at = ? WHERE id = ?
     `);
@@ -322,6 +392,11 @@ class UserStore {
    * Update user credentials (encrypted)
    */
   updateCredentials(id: string, encryptedCredentials: string | null): boolean {
+    if (this.isMockUserId(id)) {
+      this.mockCredentialsEncrypted = encryptedCredentials;
+      this.mockUpdatedAt = new Date();
+      return true;
+    }
     const stmt = this.db.prepare(`
       UPDATE users SET credentials_encrypted = ?, updated_at = ? WHERE id = ?
     `);
@@ -410,6 +485,9 @@ class UserStore {
    * Get user credentials (encrypted)
    */
   getCredentials(id: string): string | null {
+    if (this.isMockUserId(id)) {
+      return this.mockCredentialsEncrypted;
+    }
     const stmt = this.db.prepare(`SELECT credentials_encrypted FROM users WHERE id = ?`);
     const row = stmt.get(id) as { credentials_encrypted: string | null } | undefined;
     return row?.credentials_encrypted || null;

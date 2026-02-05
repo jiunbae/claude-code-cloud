@@ -7,13 +7,19 @@ import { workspaceManager } from '@/server/workspace/WorkspaceManager';
 import { fileSystemManager } from '@/server/files/FileSystemManager';
 import { getAuthContext } from '@/server/auth';
 import { shareTokenStore } from '@/server/collaboration/ShareTokenStore';
+import { isAuthDisabled } from '@/server/middleware/auth';
 
 type RouteParams = {
   params: Promise<{ id: string }>;
 };
 
 // Helper to get workspace path from session with auth check
-async function getWorkspacePath(sessionId: string, userId?: string, shareToken?: string) {
+async function getWorkspacePath(
+  sessionId: string,
+  userId?: string,
+  shareToken?: string,
+  authDisabled = false
+) {
   const session = sessionStore.getWithWorkspace(sessionId);
 
   if (!session) {
@@ -29,7 +35,7 @@ async function getWorkspacePath(sessionId: string, userId?: string, shareToken?:
     hasShareAccess = validation.valid && validation.sessionId === sessionId;
   }
 
-  if (!isOwner && !hasShareAccess) {
+  if (!authDisabled && !isOwner && !hasShareAccess) {
     return { error: 'Access denied', status: 403 };
   }
 
@@ -67,17 +73,23 @@ function validatePath(basePath: string, filePath: string): string | null {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
+    const authDisabled = isAuthDisabled();
     const auth = await getAuthContext(request);
 
     const url = new URL(request.url);
     const shareToken = url.searchParams.get('token');
 
     // Allow access with either auth or valid share token
-    if (!auth && !shareToken) {
+    if (!authDisabled && !auth && !shareToken) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const result = await getWorkspacePath(id, auth?.userId, shareToken || undefined);
+    const result = await getWorkspacePath(
+      id,
+      authDisabled ? undefined : auth?.userId,
+      shareToken || undefined,
+      authDisabled
+    );
     if ('error' in result) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }
