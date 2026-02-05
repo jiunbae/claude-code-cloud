@@ -67,24 +67,24 @@ export default function OTPInput({
   };
 
   return (
-    <div className=\"flex items-center gap-2\">
+    <div className="flex items-center gap-2">
       {Array.from({ length }).map((_, index) => (
         <input
           key={index}
           ref={(el) => {
             inputRefs.current[index] = el;
           }}
-          type=\"text\"
-          inputMode=\"numeric\"
-          pattern=\"[0-9]*\"
-          autoComplete=\"one-time-code\"
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          autoComplete="one-time-code"
           maxLength={1}
           value={digits[index] || ''}
           disabled={disabled}
           autoFocus={autoFocus && index === 0}
           onChange={(event) => handleChange(index, event.target.value)}
           onKeyDown={(event) => handleKeyDown(index, event)}
-          className=\"w-10 h-12 text-center text-lg font-semibold bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500\"
+          className="w-10 h-12 text-center text-lg font-semibold bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       ))}
     </div>

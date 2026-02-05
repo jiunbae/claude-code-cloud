@@ -93,7 +93,10 @@ export function generateBackupCodes(count = 10): string[] {
 
 export function hashBackupCode(code: string): string {
   const normalized = code.replace(/[^0-9]/g, '');
-  const salt = process.env.BACKUP_CODE_SALT || '';
+  const salt = process.env.BACKUP_CODE_SALT;
+  if (!salt) {
+    throw new Error('BACKUP_CODE_SALT environment variable is required for backup code hashing');
+  }
   return crypto.createHash('sha256').update(normalized + salt).digest('hex');
 }
 
