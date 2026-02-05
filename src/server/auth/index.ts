@@ -1,5 +1,13 @@
 export { userStore } from './UserStore';
-export { signToken, verifyToken, decodeToken, getTokenFromHeader, AUTH_COOKIE_OPTIONS } from './jwt';
+export {
+  signToken,
+  verifyToken,
+  decodeToken,
+  getTokenFromHeader,
+  signOtpToken,
+  verifyOtpToken,
+  AUTH_COOKIE_OPTIONS,
+} from './jwt';
 export { hashPassword, verifyPassword, validatePassword } from './password';
 export {
   getAuthContext,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { userStore, verifyPassword, signToken, AUTH_COOKIE_OPTIONS } from '@/server/auth';
+import { userStore, verifyPassword, signToken, signOtpToken, AUTH_COOKIE_OPTIONS } from '@/server/auth';
 import type { LoginRequest } from '@/types/auth';
 
 // POST /api/auth/login - Login user
@@ -48,6 +48,21 @@ export async function POST(request: NextRequest) {
         { error: 'Invalid email or password' },
         { status: 401 }
       );
+    }
+
+    // If OTP is enabled, issue a short-lived temp token
+    if (user.otpEnabled) {
+      const tempToken = signOtpToken({
+        userId: user.id,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+      });
+
+      return NextResponse.json({
+        requiresOtp: true,
+        tempToken,
+      });
     }
 
     // Generate JWT token

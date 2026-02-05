@@ -68,6 +68,8 @@ class UserStore {
         username TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
         role TEXT DEFAULT 'user',
+        otp_secret TEXT DEFAULT NULL,
+        otp_enabled INTEGER DEFAULT 0,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         last_login_at TEXT,
@@ -92,6 +94,21 @@ class UserStore {
     // Add credentials_encrypted column if it doesn't exist
     if (!userColumns.some((col) => col.name === 'credentials_encrypted')) {
       this._db!.exec(`ALTER TABLE users ADD COLUMN credentials_encrypted TEXT DEFAULT NULL`);
+    }
+
+    // Add otp_secret column if it doesn't exist
+    if (!userColumns.some((col) => col.name === 'otp_secret')) {
+      this._db!.exec(`ALTER TABLE users ADD COLUMN otp_secret TEXT DEFAULT NULL`);
+    }
+
+    // Add otp_enabled column if it doesn't exist
+    if (!userColumns.some((col) => col.name === 'otp_enabled')) {
+      this._db!.exec(`ALTER TABLE users ADD COLUMN otp_enabled INTEGER DEFAULT 0`);
+    }
+
+    // Add otp_backup_codes column if it doesn't exist (JSON array of hashed codes)
+    if (!userColumns.some((col) => col.name === 'otp_backup_codes')) {
+      this._db!.exec(`ALTER TABLE users ADD COLUMN otp_backup_codes TEXT DEFAULT NULL`);
     }
 
     // Add owner_id and is_public columns to sessions if they don't exist
@@ -349,6 +366,7 @@ class UserStore {
       username: user.username,
       role: user.role,
       credentialMode: user.credentialMode,
+      otpEnabled: user.otpEnabled,
       createdAt: user.createdAt,
       lastLoginAt: user.lastLoginAt,
     };
@@ -387,6 +405,83 @@ class UserStore {
   }
 
   /**
+   * Update OTP secret (encrypted)
+   */
+  updateOtpSecret(id: string, encryptedSecret: string | null): boolean {
+    const stmt = this.db.prepare(`
+      UPDATE users SET otp_secret = ?, updated_at = ? WHERE id = ?
+    `);
+    const result = stmt.run(encryptedSecret, new Date().toISOString(), id);
+    return result.changes > 0;
+  }
+
+  /**
+   * Enable or disable OTP
+   */
+  setOtpEnabled(id: string, enabled: boolean): boolean {
+    const stmt = this.db.prepare(`
+      UPDATE users SET otp_enabled = ?, updated_at = ? WHERE id = ?
+    `);
+    const result = stmt.run(enabled ? 1 : 0, new Date().toISOString(), id);
+    return result.changes > 0;
+  }
+
+  /**
+   * Disable OTP and clear secret
+   */
+  clearOtp(id: string): boolean {
+    const stmt = this.db.prepare(`
+      UPDATE users SET otp_secret = NULL, otp_enabled = 0, otp_backup_codes = NULL, updated_at = ? WHERE id = ?
+    `);
+    const result = stmt.run(new Date().toISOString(), id);
+    return result.changes > 0;
+  }
+
+  /**
+   * Store hashed backup codes (JSON array)
+   */
+  updateBackupCodes(id: string, hashedCodes: string[]): boolean {
+    const stmt = this.db.prepare(`
+      UPDATE users SET otp_backup_codes = ?, updated_at = ? WHERE id = ?
+    `);
+    const result = stmt.run(JSON.stringify(hashedCodes), new Date().toISOString(), id);
+    return result.changes > 0;
+  }
+
+  /**
+   * Get hashed backup codes
+   */
+  getBackupCodes(id: string): string[] {
+    const stmt = this.db.prepare(`SELECT otp_backup_codes FROM users WHERE id = ?`);
+    const row = stmt.get(id) as { otp_backup_codes: string | null } | undefined;
+    if (!row?.otp_backup_codes) return [];
+    try {
+      return JSON.parse(row.otp_backup_codes);
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Remove a used backup code (by its hash)
+   */
+  removeBackupCode(id: string, hashedCode: string): boolean {
+    const codes = this.getBackupCodes(id);
+    const filtered = codes.filter((c) => c !== hashedCode);
+    if (filtered.length === codes.length) return false;
+    return this.updateBackupCodes(id, filtered);
+  }
+
+  /**
+   * Get OTP secret (encrypted)
+   */
+  getOtpSecret(id: string): string | null {
+    const stmt = this.db.prepare(`SELECT otp_secret FROM users WHERE id = ?`);
+    const row = stmt.get(id) as { otp_secret: string | null } | undefined;
+    return row?.otp_secret || null;
+  }
+
+  /**
    * Get user credentials (encrypted)
    */
   getCredentials(id: string): string | null {
@@ -415,6 +510,7 @@ class UserStore {
       username: row.username,
       role: (row.role as UserRole) || 'user',
       credentialMode: (row.credential_mode as CredentialMode) || 'global',
+      otpEnabled: row.otp_enabled === 1,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
       lastLoginAt: row.last_login_at ? new Date(row.last_login_at) : null,
@@ -432,6 +528,8 @@ interface UserRow {
   role: string;
   credential_mode: string;
   credentials_encrypted: string | null;
+  otp_secret: string | null;
+  otp_enabled: number;
   created_at: string;
   updated_at: string;
   last_login_at: string | null;

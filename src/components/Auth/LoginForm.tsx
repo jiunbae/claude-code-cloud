@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthStatus } from '@/hooks/useAuthStatus';
+import OTPLoginStep from './OTPLoginStep';
 
 export default function LoginForm() {
   const router = useRouter();
@@ -11,6 +12,8 @@ export default function LoginForm() {
   const { authDisabled, isLoading: authStatusLoading } = useAuthStatus();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [otpRequired, setOtpRequired] = useState(false);
+  const [tempToken, setTempToken] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -28,6 +31,13 @@ export default function LoginForm() {
 
     const result = await login({ email, password });
 
+    if (result.success && result.requiresOtp) {
+      setOtpRequired(true);
+      setTempToken(result.tempToken || '');
+      setLoading(false);
+      return;
+    }
+
     if (result.success) {
       router.push('/');
     } else {
@@ -36,6 +46,35 @@ export default function LoginForm() {
 
     setLoading(false);
   };
+
+  if (otpRequired) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-900 to-gray-950 flex items-center justify-center px-4">
+        <div className="w-full max-w-md space-y-6">
+          {/* Logo */}
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 mx-auto bg-gradient-to-br from-orange-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg mb-4">
+              <span className="text-white font-bold text-2xl">CC</span>
+            </div>
+            <h1 className="text-2xl font-bold text-white">Verify your identity</h1>
+          </div>
+
+          <div className="bg-gray-900/40 border border-gray-800 rounded-2xl p-6">
+            <OTPLoginStep
+              tempToken={tempToken}
+              email={email}
+              onSuccess={() => router.push('/')}
+              onCancel={() => {
+                setOtpRequired(false);
+                setTempToken('');
+                setError('');
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-900 to-gray-950 flex items-center justify-center px-4">

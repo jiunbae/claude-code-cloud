@@ -1,8 +1,16 @@
 import jwt, { SignOptions } from 'jsonwebtoken';
 import type { JWTPayload } from '@/types/auth';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required');
+}
 const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN || '7d') as SignOptions['expiresIn'];
+const OTP_TOKEN_EXPIRES_IN = (process.env.OTP_TOKEN_EXPIRES_IN || '10m') as SignOptions['expiresIn'];
+
+export interface OtpTokenPayload extends JWTPayload {
+  otpPending: true;
+}
 
 /**
  * Sign a JWT token with user payload
@@ -18,7 +26,34 @@ export function signToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): string {
  */
 export function verifyToken(token: string): JWTPayload | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
+    const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload & { otpPending?: boolean };
+    if (decoded.otpPending) {
+      return null;
+    }
+    return decoded;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Sign a short-lived OTP token for completing 2FA login
+ */
+export function signOtpToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): string {
+  return jwt.sign({ ...payload, otpPending: true }, JWT_SECRET, {
+    expiresIn: OTP_TOKEN_EXPIRES_IN,
+  } as SignOptions);
+}
+
+/**
+ * Verify OTP token (must include otpPending)
+ */
+export function verifyOtpToken(token: string): OtpTokenPayload | null {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as OtpTokenPayload;
+    if (!decoded.otpPending) {
+      return null;
+    }
     return decoded;
   } catch {
     return null;

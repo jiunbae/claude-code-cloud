@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSettings } from '@/hooks/useSettings';
+import { OTPSetup } from '@/components/Auth';
 import type { ThemeMode, Language } from '@/types/settings';
 
 const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
@@ -217,6 +218,11 @@ export function GeneralSettings() {
             `}
           />
         </button>
+      </div>
+
+      {/* Two-factor authentication */}
+      <div className="p-5 bg-gray-800/60 border border-gray-700 rounded-xl">
+        <OTPSetup />
       </div>
 
       {/* Save Message */}
