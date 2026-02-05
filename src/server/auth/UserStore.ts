@@ -40,6 +40,7 @@ class UserStore {
       updatedAt: this.mockUpdatedAt,
       lastLoginAt: this.mockLastLoginAt,
       isActive: true,
+      otpEnabled: false,
     };
   }
 
