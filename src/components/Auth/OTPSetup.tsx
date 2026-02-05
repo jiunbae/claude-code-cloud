@@ -73,6 +73,7 @@ export default function OTPSetup() {
 
       if (!response.ok) {
         showMessage('error', result.error || 'Failed to verify code');
+        setSetupCode(''); // Clear code on failed attempt
         return;
       }
 
@@ -106,6 +107,8 @@ export default function OTPSetup() {
 
       if (!response.ok) {
         showMessage('error', result.error || 'Failed to disable 2FA');
+        setDisablePassword(''); // Clear password on failed attempt for security
+        setDisableCode(''); // Clear OTP code as it may have expired
         return;
       }
 

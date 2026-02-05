@@ -78,7 +78,6 @@ export default function OTPInput({
           inputMode="numeric"
           pattern="[0-9]*"
           autoComplete="one-time-code"
-          maxLength={1}
           value={digits[index] || ''}
           disabled={disabled}
           autoFocus={autoFocus && index === 0}
