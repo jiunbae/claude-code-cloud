@@ -1,15 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { useAuthStore } from '@/stores/authStore';
 
-interface AuthStatus {
+interface AuthStatusResponse {
   authEnabled: boolean;
 }
 
 export function useAuthStatus() {
-  const [authEnabled, setAuthEnabled] = useState<boolean | null>(null);
+  const { authDisabled, authStatusFetched, setAuthDisabled } = useAuthStore();
 
   useEffect(() => {
+    // Skip if already fetched
+    if (authStatusFetched) return;
+
     let active = true;
 
     const fetchStatus = async () => {
@@ -17,8 +21,8 @@ export function useAuthStatus() {
         const response = await fetch('/api/auth/status', { cache: 'no-store' });
         if (!active) return;
         if (response.ok) {
-          const data = (await response.json()) as AuthStatus;
-          setAuthEnabled(Boolean(data.authEnabled));
+          const data = (await response.json()) as AuthStatusResponse;
+          setAuthDisabled(!data.authEnabled);
           return;
         }
       } catch (error) {
@@ -27,7 +31,7 @@ export function useAuthStatus() {
       }
 
       if (active) {
-        setAuthEnabled(true);
+        setAuthDisabled(false); // Default to auth enabled
       }
     };
 
@@ -36,11 +40,11 @@ export function useAuthStatus() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [authStatusFetched, setAuthDisabled]);
 
   return {
-    authEnabled,
-    authDisabled: authEnabled === false,
-    isLoading: authEnabled === null,
+    authEnabled: authDisabled === false,
+    authDisabled: authDisabled === true,
+    isLoading: authDisabled === null,
   };
 }
