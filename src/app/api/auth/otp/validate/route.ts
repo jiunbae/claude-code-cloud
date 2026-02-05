@@ -64,14 +64,14 @@ export async function POST(request: NextRequest) {
     // If TOTP code is invalid, try backup codes with constant-time comparison
     if (!isValidOtp) {
       const hashedInput = hashBackupCode(code);
-      const hashedInputBuffer = Buffer.from(hashedInput);
+      const hashedInputBuffer = Buffer.from(hashedInput, 'hex');
       const backupCodes = userStore.getBackupCodes(user.id);
       let matchedHash: string | null = null;
 
       // Use constant-time comparison to prevent timing attacks
       for (const storedHash of backupCodes) {
         if (storedHash.length === hashedInput.length) {
-          const storedBuffer = Buffer.from(storedHash);
+          const storedBuffer = Buffer.from(storedHash, 'hex');
           if (crypto.timingSafeEqual(storedBuffer, hashedInputBuffer)) {
             matchedHash = storedHash;
           }
