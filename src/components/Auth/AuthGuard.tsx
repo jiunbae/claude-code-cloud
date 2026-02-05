@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { useAuthStatus } from '@/hooks/useAuthStatus';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -12,7 +13,8 @@ interface AuthGuardProps {
 
 export default function AuthGuard({ children, fallback, sessionId }: AuthGuardProps) {
   const router = useRouter();
-  const { isLoading, isAuthenticated } = useAuth();
+  const { isLoading, isAuthenticated, refreshUser } = useAuth();
+  const { authDisabled, isLoading: authStatusLoading } = useAuthStatus();
   const [isAnonymousParticipant, setIsAnonymousParticipant] = useState<boolean | null>(null);
 
   // Check for anonymous participant info in sessionStorage
@@ -32,13 +34,23 @@ export default function AuthGuard({ children, fallback, sessionId }: AuthGuardPr
     // Wait for anonymous check to complete
     if (isAnonymousParticipant === null) return;
 
+    if (authDisabled) {
+      return;
+    }
+
     if (!isLoading && !isAuthenticated && !isAnonymousParticipant) {
       router.replace('/login');
     }
-  }, [isLoading, isAuthenticated, isAnonymousParticipant, router]);
+  }, [authDisabled, isLoading, isAuthenticated, isAnonymousParticipant, router]);
+
+  useEffect(() => {
+    if (authDisabled && !isAuthenticated) {
+      refreshUser();
+    }
+  }, [authDisabled, isAuthenticated, refreshUser]);
 
   // Show loading state
-  if (isLoading || isAnonymousParticipant === null) {
+  if (isLoading || authStatusLoading || isAnonymousParticipant === null) {
     return (
       fallback || (
         <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-900 to-gray-950 flex items-center justify-center">
@@ -56,6 +68,11 @@ export default function AuthGuard({ children, fallback, sessionId }: AuthGuardPr
 
   // Anonymous participant - allow access
   if (isAnonymousParticipant) {
+    return <>{children}</>;
+  }
+
+  // Auth disabled - allow access
+  if (authDisabled) {
     return <>{children}</>;
   }
 
