@@ -1,13 +1,16 @@
 import jwt, { SignOptions } from 'jsonwebtoken';
 import type { JWTPayload } from '@/types/auth';
 
-const envJwtSecret = process.env.JWT_SECRET;
-if (!envJwtSecret) {
-  throw new Error('JWT_SECRET environment variable is required');
-}
-const JWT_SECRET: string = envJwtSecret;
 const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN || '7d') as SignOptions['expiresIn'];
 const OTP_TOKEN_EXPIRES_IN = (process.env.OTP_TOKEN_EXPIRES_IN || '10m') as SignOptions['expiresIn'];
+
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is required');
+  }
+  return secret;
+}
 
 export interface OtpTokenPayload extends JWTPayload {
   otpPending: true;
@@ -17,7 +20,7 @@ export interface OtpTokenPayload extends JWTPayload {
  * Sign a JWT token with user payload
  */
 export function signToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): string {
-  return jwt.sign(payload, JWT_SECRET, {
+  return jwt.sign(payload, getJwtSecret(), {
     expiresIn: JWT_EXPIRES_IN,
   } as SignOptions);
 }
@@ -27,7 +30,7 @@ export function signToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): string {
  */
 export function verifyToken(token: string): JWTPayload | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload & { otpPending?: boolean };
+    const decoded = jwt.verify(token, getJwtSecret()) as JWTPayload & { otpPending?: boolean };
     if (decoded.otpPending) {
       return null;
     }
@@ -41,7 +44,7 @@ export function verifyToken(token: string): JWTPayload | null {
  * Sign a short-lived OTP token for completing 2FA login
  */
 export function signOtpToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): string {
-  return jwt.sign({ ...payload, otpPending: true }, JWT_SECRET, {
+  return jwt.sign({ ...payload, otpPending: true }, getJwtSecret(), {
     expiresIn: OTP_TOKEN_EXPIRES_IN,
   } as SignOptions);
 }
@@ -51,7 +54,7 @@ export function signOtpToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): string {
  */
 export function verifyOtpToken(token: string): OtpTokenPayload | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as OtpTokenPayload;
+    const decoded = jwt.verify(token, getJwtSecret()) as OtpTokenPayload;
     if (!decoded.otpPending) {
       return null;
     }
