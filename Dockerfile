@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ===== Base Stage =====
-FROM node:20-bookworm-slim AS base
+FROM registry.jiun.dev/library/node:20-bookworm-slim AS base
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
@@ -50,7 +50,7 @@ FROM base AS codex-cli
 RUN npm install -g @openai/codex && codex --version
 
 # ===== Runtime Stage =====
-FROM node:20-bookworm-slim AS runner
+FROM registry.jiun.dev/library/node:20-bookworm-slim AS runner
 
 # Install runtime dependencies and development tools
 RUN apt-get update && apt-get install -y \
