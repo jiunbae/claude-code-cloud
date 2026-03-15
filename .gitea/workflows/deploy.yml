@@ -9,7 +9,8 @@ env:
   REGISTRY: registry.jiun.dev
   IMAGE_NAME: claude-code-cloud
   IAC_REPO: jiunbae/IaC
-  APP_PATH: kubernetes/apps/claude-code-cloud
+  OVERLAY_DEV: kubernetes/overlays/dev/claude-code-cloud
+  OVERLAY_PROD: kubernetes/overlays/prod/claude-code-cloud
 
 jobs:
   build:
@@ -46,19 +47,21 @@ jobs:
           build-args: |
             NEXT_PUBLIC_GA_ID=${{ secrets.NEXT_PUBLIC_GA_ID }}
 
-      - name: Clone IaC repo and update image tag
+      - name: Clone IaC repo and update image tags
         run: |
           git clone https://x-access-token:${{ secrets.IAC_GITHUB_TOKEN }}@github.com/${{ env.IAC_REPO }}.git iac
-          cd iac/${{ env.APP_PATH }}
-          sed -i "s/newTag: .*/newTag: ${{ gitea.sha }}/" kustomization.yaml
-          cat kustomization.yaml
+          cd iac
+          sed -i "s/newTag: .*/newTag: ${{ gitea.sha }}/" ${{ env.OVERLAY_DEV }}/kustomization.yaml
+          sed -i "s/newTag: .*/newTag: ${{ gitea.sha }}/" ${{ env.OVERLAY_PROD }}/kustomization.yaml
+          echo "=== dev overlay ===" && cat ${{ env.OVERLAY_DEV }}/kustomization.yaml
+          echo "=== prod overlay ===" && cat ${{ env.OVERLAY_PROD }}/kustomization.yaml
 
       - name: Commit and push to IaC repo
         run: |
           cd iac
           git config user.name "Gitea Actions"
           git config user.email "actions@gitea.jiun.dev"
-          git add ${{ env.APP_PATH }}/kustomization.yaml
+          git add ${{ env.OVERLAY_DEV }}/kustomization.yaml ${{ env.OVERLAY_PROD }}/kustomization.yaml
           git diff --staged --quiet || git commit -m "chore(claude-code-cloud): update image tag to ${{ gitea.sha }}"
           git push
 
